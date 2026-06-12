@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório · Portal de Auditoria de Concreto</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 13px; min-height: 100vh; }
+
+    .topbar {
+      background: #0d1f35; height: 52px; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1b2d4a;
+    }
+    .topbar-left   { display: flex; align-items: center; gap: 10px; }
+    .topbar-divider{ width: 1px; height: 18px; background: #243659; }
+    .topbar-label  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #a78bfa; }
+    .topbar-title  { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .topbar-right  { display: flex; gap: 6px; align-items: center; }
+    .topbar-status { font-size: 10px; color: #4a6080; margin-right: 6px; display: flex; align-items: center; gap: 5px; }
+    .tdot { width: 6px; height: 6px; border-radius: 50%; background: #4a6080; transition: background .3s; flex-shrink: 0; }
+    .tdot.ok      { background: #22c55e; }
+    .tdot.loading { background: #f59e0b; animation: blink 1s infinite; }
+    .tdot.err     { background: #ef4444; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 14px; border-radius: 5px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      border: none; font-family: inherit; transition: background .12s;
+      white-space: nowrap; text-decoration: none;
+    }
+    .btn svg { flex-shrink: 0; }
+    .btn-primary { background: #277EBD; color: #fff; }
+    .btn-primary:hover { background: #1d6ca6; }
+    .btn-export  { background: #0f766e; color: #fff; }
+    .btn-export:hover { background: #0d6460; }
+
+    /* obra header */
+    .obra-header {
+      background: #1b2a4a; border-bottom: 2px solid #7c3aed;
+      padding: 16px 28px; display: flex; align-items: center; gap: 20px;
+    }
+    .obra-foto {
+      width: 80px; height: 56px; border-radius: 5px; object-fit: cover;
+      background: #243659; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .obra-foto svg { opacity: .3; }
+    .obra-foto img { width: 100%; height: 100%; object-fit: cover; border-radius: 5px; }
+    .obra-info { flex: 1; }
+    .obra-nome  { font-size: 16px; font-weight: 700; color: #f1f5f9; }
+    .obra-meta  { font-size: 11px; color: #64748b; margin-top: 3px; display: flex; gap: 16px; flex-wrap: wrap; }
+    .obra-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* KPIs */
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; padding: 20px 28px 0; }
+    .kpi  { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; }
+    .kpi-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 6px; }
+    .kpi-val { font-size: 22px; font-weight: 700; color: #1e293b; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .kpi-val.green  { color: #16a34a; }
+    .kpi-val.red    { color: #dc2626; }
+    .kpi-val.purple { color: #7c3aed; }
+    .kpi-val.blue   { color: #277EBD; }
+    .kpi-sub { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+
+    .content { padding: 20px 28px 40px; display: flex; flex-direction: column; gap: 20px; }
+
+    .section-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      color: #7c3aed; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 12px;
+    }
+
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+    .card-bar { background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .card-bar-title{ font-size: 11px; font-weight: 700; color: #1b2a4a; text-transform: uppercase; letter-spacing: .5px; }
+
+    .tbl { width: 100%; border-collapse: collapse; }
+    .tbl thead th {
+      background: #f8fafc; color: #64748b;
+      font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+      padding: 8px 12px; text-align: left; border-bottom: 2px solid #e2e8f0;
+    }
+    .tbl thead th.r { text-align: right; }
+    .tbl thead th.c { text-align: center; }
+    .tbl tbody tr { border-bottom: 1px solid #f1f5f9; }
+    .tbl tbody tr:last-child { border-bottom: none; }
+    .tbl tbody td { padding: 8px 12px; color: #334155; font-size: 12px; }
+    .tbl tbody td.r { text-align: right; font-variant-numeric: tabular-nums; }
+    .tbl tbody td.c { text-align: center; }
+    .tbl tfoot td  { padding: 8px 12px; font-size: 11px; background: #f8fafc; border-top: 2px solid #e2e8f0; font-weight: 700; color: #1e293b; }
+    .tbl tfoot td.r { text-align: right; }
+
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; letter-spacing: .3px; }
+    .badge-done { background: #dcfce7; color: #15803d; }
+    .badge-prog { background: #fef9c3; color: #854d0e; }
+    .badge-pend { background: #f1f5f9; color: #64748b; }
+
+    .prog-wrap { display: flex; align-items: center; gap: 8px; }
+    .prog-bar  { flex: 1; height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; min-width: 60px; }
+    .prog-fill { height: 100%; background: #7c3aed; border-radius: 3px; transition: width .3s; }
+    .prog-pct  { font-size: 10px; color: #64748b; font-weight: 600; width: 38px; text-align: right; white-space: nowrap; }
+
+    .desvio-pos { color: #dc2626; font-weight: 600; }
+    .desvio-neg { color: #16a34a; font-weight: 600; }
+
+    .empty { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 12px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .perda-row-dest { background: #fef9c3; }
+    .perda-row-ok   { background: #f0fdf4; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-label">Auditoria · Concreto</span>
+    <div class="topbar-divider"></div>
+    <span class="topbar-title">Relatório Consolidado</span>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-status"><div class="tdot loading" id="statusDot"></div><span id="statusText">Carregando...</span></div>
+    <button class="btn btn-export" onclick="exportXLSX()">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Exportar XLSX
+    </button>
+    <a href="#" id="btnVoltar" class="btn btn-primary">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Painel
+    </a>
+  </div>
+</div>
+
+<!-- Obra header -->
+<div class="obra-header">
+  <div class="obra-foto" id="obraFotoWrap">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#94a3b8" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#94a3b8" stroke-width="1.5"/><path d="M21 15l-5-5L5 21" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <div class="obra-info">
+    <div class="obra-nome" id="obraNome">—</div>
+    <div class="obra-meta">
+      <span id="obraCodigo">—</span>
+      <span id="obraLocal">—</span>
+      <span id="obraResp">—</span>
+      <span id="obraConst">—</span>
+      <span id="obraData">—</span>
+    </div>
+  </div>
+  <div style="font-size:10px;color:#4a6080;text-align:right">
+    Gerado em<br>
+    <span style="color:#94a3b8;font-weight:600" id="dataGeracao">—</span>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpis" id="kpisArea">
+  <div class="kpi"><div class="kpi-lbl">Total Orçado</div><div class="kpi-val blue" id="kpiOrcado">—</div><div class="kpi-sub" id="kpiOrcadoM3">— m³ orçados</div></div>
+  <div class="kpi"><div class="kpi-lbl">Total Apropriad</div><div class="kpi-val" id="kpiApropr">—</div><div class="kpi-sub" id="kpiAproprM3">— m³ apropriad</div></div>
+  <div class="kpi"><div class="kpi-lbl">Desvio de Custo</div><div class="kpi-val" id="kpiDesvio">—</div><div class="kpi-sub" id="kpiDesvioSub">—</div></div>
+  <div class="kpi"><div class="kpi-lbl">Execução Física</div><div class="kpi-val purple" id="kpiFisica">—</div><div class="kpi-sub" id="kpiFisicaSub">—</div></div>
+  <div class="kpi"><div class="kpi-lbl">Notas Fiscais</div><div class="kpi-val" id="kpiNFs">—</div><div class="kpi-sub">registros de NF</div></div>
+</div>
+
+<div class="content">
+
+  <!-- Orçamento -->
+  <div>
+    <div class="section-title">Orçamento</div>
+    <div class="card">
+      <div class="card-bar"><span class="card-bar-title">Itens Orçados</span></div>
+      <table class="tbl" id="tblOrc">
+        <thead>
+          <tr>
+            <th style="width:34px" class="c">#</th>
+            <th>Descrição</th>
+            <th style="width:80px" class="c">Unid.</th>
+            <th style="width:120px" class="r">Qtd. Orçada</th>
+            <th style="width:120px" class="r">R$ / m³</th>
+            <th style="width:140px" class="r">Total Orçado</th>
+          </tr>
+        </thead>
+        <tbody id="orcBody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" style="color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Total</td>
+            <td class="r" id="footOrcM3">—</td>
+            <td></td>
+            <td class="r" id="footOrcTotal">R$ 0</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Visão Física + Apropriações lado a lado -->
+  <div class="grid-2">
+
+    <!-- Visão Física -->
+    <div>
+      <div class="section-title">Evolução Física</div>
+      <div class="card">
+        <div class="card-bar"><span class="card-bar-title">Progresso por Elemento</span></div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width:34px" class="c">#</th>
+              <th>Elemento</th>
+              <th>Fase</th>
+              <th style="width:100px" class="c">Data</th>
+              <th style="width:80px" class="r">Prev. m³</th>
+              <th style="width:80px" class="r">Real. m³</th>
+              <th style="width:120px" class="c">% Exec.</th>
+              <th style="width:80px" class="c">Status</th>
+            </tr>
+          </thead>
+          <tbody id="fisBody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" style="color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Total</td>
+              <td class="r" id="footFisPrev">—</td>
+              <td class="r" id="footFisReal">—</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Análise de Perdas -->
+    <div>
+      <div class="section-title">Análise de Desvio</div>
+      <div class="card">
+        <div class="card-bar"><span class="card-bar-title">Orçado vs Apropriad</span></div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              <th class="r">Orçado</th>
+              <th class="r">Apropriad</th>
+              <th class="r">Desvio</th>
+            </tr>
+          </thead>
+          <tbody id="desvioBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Apropriações -->
+  <div>
+    <div class="section-title">Registro de Apropriações (Notas Fiscais)</div>
+    <div class="card">
+      <div class="card-bar"><span class="card-bar-title">Histórico de NFs</span></div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:34px" class="c">#</th>
+            <th style="width:100px">Data NF</th>
+            <th style="width:110px">Nº NF</th>
+            <th style="min-width:130px">Fornecedor</th>
+            <th>Descrição / FCK</th>
+            <th style="width:100px" class="r">Vol. (m³)</th>
+            <th style="width:110px" class="r">R$ / m³</th>
+            <th style="width:120px" class="r">R$ Total</th>
+          </tr>
+        </thead>
+        <tbody id="aprBody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5" style="color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Total</td>
+            <td class="r" id="footAprM3">—</td>
+            <td></td>
+            <td class="r" id="footAprTotal">R$ 0</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
+  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
+  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+  var OBRA_ID = new URLSearchParams(window.location.search).get('obra');
+  if (!OBRA_ID) { window.location.href = 'home.html'; }
+
+  document.getElementById('btnVoltar').href = 'painel.html?obra=' + OBRA_ID;
+
+  var DATA = { obra: null, orc: [], fis: [], apr: [] };
+
+  function fmtBRL(n)  { return 'R$ ' + Math.round(+n||0).toLocaleString('pt-BR'); }
+  function fmtNum(n)  { var v=+n||0; return v.toLocaleString('pt-BR',{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2}); }
+  function fmtDate(s) {
+    if (!s) return '—';
+    var p = s.split('-');
+    if (p.length === 3) return p[2]+'/'+p[1]+'/'+p[0];
+    return s;
+  }
+  function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function statusBadge(pct) {
+    if (pct >= 100) return '<span class="badge badge-done">Concluído</span>';
+    if (pct > 0)    return '<span class="badge badge-prog">Em andamento</span>';
+    return              '<span class="badge badge-pend">Pendente</span>';
+  }
+
+  async function init() {
+    setStatus('loading', 'Carregando...');
+    try {
+      var [ rObra, rOrc, rFis, rApr ] = await Promise.all([
+        db.from('obras').select('*').eq('id', OBRA_ID).single(),
+        db.from('orcamento').select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true }),
+        db.from('visao_fisica').select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true }),
+        db.from('apropriacao').select('*').eq('obra_id', OBRA_ID).order('data_nf', { ascending: true })
+      ]);
+      if (rObra.error) throw rObra.error;
+
+      DATA.obra = rObra.data;
+      DATA.orc  = rOrc.data  || [];
+      DATA.fis  = rFis.data  || [];
+      DATA.apr  = rApr.data  || [];
+
+      renderObra();
+      renderKPIs();
+      renderOrcamento();
+      renderFisica();
+      renderApropriacao();
+      renderDesvio();
+
+      setStatus('ok', 'Dados carregados');
+    } catch(e) {
+      setStatus('err', 'Erro: ' + e.message);
+    }
+  }
+
+  function renderObra() {
+    var o = DATA.obra;
+    document.getElementById('obraNome').textContent    = o.nome || '—';
+    document.getElementById('obraCodigo').textContent  = o.codigo || '';
+    document.getElementById('obraLocal').textContent   = o.localizacao || '';
+    document.getElementById('obraResp').textContent    = o.responsavel ? 'Resp.: ' + o.responsavel : '';
+    document.getElementById('obraConst').textContent   = o.construtora || '';
+    document.getElementById('obraData').textContent    = o.data_inicio ? 'Início: ' + o.data_inicio : '';
+    document.getElementById('dataGeracao').textContent = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    if (o.foto_url) {
+      document.getElementById('obraFotoWrap').innerHTML = '<img src="'+esc(o.foto_url)+'" alt="'+esc(o.nome)+'">';
+    }
+  }
+
+  function renderKPIs() {
+    var orcTotal = DATA.orc.reduce(function(s,r){ return s + (+r.qtd_orc||0)*(+r.rs_unitario||0); }, 0);
+    var orcM3    = DATA.orc.reduce(function(s,r){ return s + (+r.qtd_orc||0); }, 0);
+    var aprTotal = DATA.apr.reduce(function(s,r){ return s + (+r.volume||0)*(+r.rs_unitario||0); }, 0);
+    var aprM3    = DATA.apr.reduce(function(s,r){ return s + (+r.volume||0); }, 0);
+    var desvio   = aprTotal - orcTotal;
+    var desvPct  = orcTotal > 0 ? (desvio / orcTotal * 100) : 0;
+    var fisPrev  = DATA.fis.reduce(function(s,r){ return s + (+r.vol_previsto||0); }, 0);
+    var fisReal  = DATA.fis.reduce(function(s,r){ return s + (+r.vol_realizado||0); }, 0);
+    var fisPct   = fisPrev > 0 ? Math.min(fisReal/fisPrev*100, 100) : 0;
+
+    document.getElementById('kpiOrcado').textContent    = fmtBRL(orcTotal);
+    document.getElementById('kpiOrcadoM3').textContent  = fmtNum(orcM3) + ' m³ orçados';
+    document.getElementById('kpiApropr').textContent    = fmtBRL(aprTotal);
+    document.getElementById('kpiAproprM3').textContent  = fmtNum(aprM3) + ' m³ apropriad';
+
+    var kpiDev = document.getElementById('kpiDesvio');
+    kpiDev.textContent = (desvio >= 0 ? '+' : '') + fmtBRL(desvio);
+    kpiDev.className   = 'kpi-val ' + (desvio > 0 ? 'red' : 'green');
+    document.getElementById('kpiDesvioSub').textContent = (desvPct >= 0 ? '+' : '') + desvPct.toFixed(1).replace('.',',') + '% em relação ao orçado';
+
+    document.getElementById('kpiFisica').textContent    = fisPct.toFixed(1).replace('.',',') + '%';
+    document.getElementById('kpiFisicaSub').textContent = fmtNum(fisReal) + ' de ' + fmtNum(fisPrev) + ' m³ realizados';
+    document.getElementById('kpiNFs').textContent       = DATA.apr.length;
+  }
+
+  function renderOrcamento() {
+    var html = '';
+    var totM3 = 0, totVal = 0;
+    DATA.orc.forEach(function(r, i) {
+      var total = (+r.qtd_orc||0) * (+r.rs_unitario||0);
+      totM3  += +r.qtd_orc||0;
+      totVal += total;
+      html += '<tr>'+
+        '<td class="c" style="color:#94a3b8;font-size:10px">'+(i+1)+'</td>'+
+        '<td>'+esc(r.descricao||'')+'</td>'+
+        '<td class="c">'+esc(r.unidade||'m³')+'</td>'+
+        '<td class="r">'+fmtNum(r.qtd_orc)+'</td>'+
+        '<td class="r">'+fmtBRL(r.rs_unitario)+'</td>'+
+        '<td class="r" style="font-weight:600">'+fmtBRL(total)+'</td>'+
+        '</tr>';
+    });
+    if (!html) html = '<tr><td colspan="6"><div class="empty">Nenhum item orçado</div></td></tr>';
+    document.getElementById('orcBody').innerHTML = html;
+    document.getElementById('footOrcM3').textContent    = totM3 ? fmtNum(totM3) + ' m³' : '—';
+    document.getElementById('footOrcTotal').textContent = fmtBRL(totVal);
+  }
+
+  function renderFisica() {
+    var html = '';
+    var totPrev = 0, totReal = 0;
+    DATA.fis.forEach(function(r, i) {
+      var pct = (+r.vol_previsto||0) > 0 ? Math.min((+r.vol_realizado||0)/(+r.vol_previsto||0)*100, 100) : 0;
+      totPrev += +r.vol_previsto||0;
+      totReal += +r.vol_realizado||0;
+      html += '<tr>'+
+        '<td class="c" style="color:#94a3b8;font-size:10px">'+(i+1)+'</td>'+
+        '<td>'+esc(r.elemento||'')+'</td>'+
+        '<td>'+esc(r.fase||'')+'</td>'+
+        '<td class="c" style="font-size:11px;color:#64748b">'+fmtDate(r.data_concretagem)+'</td>'+
+        '<td class="r">'+fmtNum(r.vol_previsto)+'</td>'+
+        '<td class="r">'+fmtNum(r.vol_realizado)+'</td>'+
+        '<td><div class="prog-wrap">'+
+          '<div class="prog-bar"><div class="prog-fill" style="width:'+pct.toFixed(1)+'%"></div></div>'+
+          '<span class="prog-pct">'+pct.toFixed(1).replace('.',',')+'%</span>'+
+          '</div></td>'+
+        '<td class="c">'+statusBadge(pct)+'</td>'+
+        '</tr>';
+    });
+    if (!html) html = '<tr><td colspan="8"><div class="empty">Nenhum elemento cadastrado</div></td></tr>';
+    document.getElementById('fisBody').innerHTML = html;
+    document.getElementById('footFisPrev').textContent = totPrev ? fmtNum(totPrev) + ' m³' : '—';
+    document.getElementById('footFisReal').textContent = totReal ? fmtNum(totReal) + ' m³' : '—';
+  }
+
+  function renderApropriacao() {
+    var html = '';
+    var totM3 = 0, totVal = 0;
+    DATA.apr.forEach(function(r, i) {
+      var total = (+r.volume||0) * (+r.rs_unitario||0);
+      totM3  += +r.volume||0;
+      totVal += total;
+      html += '<tr>'+
+        '<td class="c" style="color:#94a3b8;font-size:10px">'+(i+1)+'</td>'+
+        '<td>'+fmtDate(r.data_nf)+'</td>'+
+        '<td>'+esc(r.numero_nf||'')+'</td>'+
+        '<td>'+esc(r.fornecedor||'')+'</td>'+
+        '<td>'+esc(r.descricao||'')+'</td>'+
+        '<td class="r">'+fmtNum(r.volume)+'</td>'+
+        '<td class="r">'+fmtBRL(r.rs_unitario)+'</td>'+
+        '<td class="r" style="font-weight:600">'+fmtBRL(total)+'</td>'+
+        '</tr>';
+    });
+    if (!html) html = '<tr><td colspan="8"><div class="empty">Nenhuma NF registrada</div></td></tr>';
+    document.getElementById('aprBody').innerHTML = html;
+    document.getElementById('footAprM3').textContent    = totM3 ? fmtNum(totM3) + ' m³' : '—';
+    document.getElementById('footAprTotal').textContent = fmtBRL(totVal);
+  }
+
+  function renderDesvio() {
+    var orcM3    = DATA.orc.reduce(function(s,r){ return s + (+r.qtd_orc||0); }, 0);
+    var aprM3    = DATA.apr.reduce(function(s,r){ return s + (+r.volume||0); }, 0);
+    var orcTotal = DATA.orc.reduce(function(s,r){ return s + (+r.qtd_orc||0)*(+r.rs_unitario||0); }, 0);
+    var aprTotal = DATA.apr.reduce(function(s,r){ return s + (+r.volume||0)*(+r.rs_unitario||0); }, 0);
+    var devM3    = aprM3    - orcM3;
+    var devVal   = aprTotal - orcTotal;
+
+    function desvioClass(v) { return v > 0 ? 'desvio-pos' : (v < 0 ? 'desvio-neg' : ''); }
+    function sinal(v) { return v > 0 ? '+' : ''; }
+
+    var html =
+      '<tr class="'+(devM3 > 0 ? 'perda-row-dest' : 'perda-row-ok')+'">'+
+        '<td style="font-weight:600">Volume (m³)</td>'+
+        '<td class="r">'+fmtNum(orcM3)+' m³</td>'+
+        '<td class="r">'+fmtNum(aprM3)+' m³</td>'+
+        '<td class="r '+desvioClass(devM3)+'">'+sinal(devM3)+fmtNum(devM3)+' m³</td>'+
+      '</tr>'+
+      '<tr class="'+(devVal > 0 ? 'perda-row-dest' : 'perda-row-ok')+'">'+
+        '<td style="font-weight:600">Custo Total (R$)</td>'+
+        '<td class="r">'+fmtBRL(orcTotal)+'</td>'+
+        '<td class="r">'+fmtBRL(aprTotal)+'</td>'+
+        '<td class="r '+desvioClass(devVal)+'">'+sinal(devVal)+fmtBRL(devVal)+'</td>'+
+      '</tr>'+
+      '<tr>'+
+        '<td style="font-weight:600">R$ Médio / m³</td>'+
+        '<td class="r">'+(orcM3>0 ? fmtBRL(orcTotal/orcM3) : '—')+'</td>'+
+        '<td class="r">'+(aprM3>0 ? fmtBRL(aprTotal/aprM3) : '—')+'</td>'+
+        '<td class="r '+(aprM3>0&&orcM3>0 ? desvioClass(aprTotal/aprM3 - orcTotal/orcM3) : '')+'">'+(aprM3>0&&orcM3>0 ? sinal(aprTotal/aprM3-orcTotal/orcM3)+fmtBRL(aprTotal/aprM3-orcTotal/orcM3) : '—')+'</td>'+
+      '</tr>';
+    document.getElementById('desvioBody').innerHTML = html;
+  }
+
+  function exportXLSX() {
+    var o = DATA.obra || {};
+    var wb = XLSX.utils.book_new();
+
+    // Aba: Orçamento
+    var orcData = [['#','Descrição','Unidade','Qtd Orçada','R$/m³','Total Orçado']];
+    DATA.orc.forEach(function(r,i) {
+      orcData.push([i+1, r.descricao||'', r.unidade||'m³', +r.qtd_orc||0, +r.rs_unitario||0, (+r.qtd_orc||0)*(+r.rs_unitario||0)]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(orcData), 'Orçamento');
+
+    // Aba: Visão Física
+    var fisData = [['#','Elemento','Fase','DataConcretagem','VolPrevisto_m3','VolRealizado_m3','%Execução']];
+    DATA.fis.forEach(function(r,i) {
+      var pct = (+r.vol_previsto||0)>0 ? +((+r.vol_realizado||0)/(+r.vol_previsto||0)*100).toFixed(2) : 0;
+      fisData.push([i+1, r.elemento||'', r.fase||'', fmtDate(r.data_concretagem), +r.vol_previsto||0, +r.vol_realizado||0, pct]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(fisData), 'EvolFísica');
+
+    // Aba: Apropriações
+    var aprData = [['#','DataNF','NumeroNF','Fornecedor','Descrição','Volume_m3','R$/m³','R$Total']];
+    DATA.apr.forEach(function(r,i) {
+      aprData.push([i+1, fmtDate(r.data_nf), r.numero_nf||'', r.fornecedor||'', r.descricao||'', +r.volume||0, +r.rs_unitario||0, (+r.volume||0)*(+r.rs_unitario||0)]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aprData), 'Apropriações');
+
+    // Aba: Análise
+    var orcM3    = DATA.orc.reduce(function(s,r){ return s+(+r.qtd_orc||0);},0);
+    var aprM3    = DATA.apr.reduce(function(s,r){ return s+(+r.volume||0);},0);
+    var orcTotal = DATA.orc.reduce(function(s,r){ return s+(+r.qtd_orc||0)*(+r.rs_unitario||0);},0);
+    var aprTotal = DATA.apr.reduce(function(s,r){ return s+(+r.volume||0)*(+r.rs_unitario||0);},0);
+    var analData = [
+      ['Indicador','Orçado','Apropriad','Desvio'],
+      ['Volume (m³)', orcM3, aprM3, aprM3-orcM3],
+      ['Custo Total (R$)', orcTotal, aprTotal, aprTotal-orcTotal],
+      ['R$ Médio / m³', orcM3>0?+(orcTotal/orcM3).toFixed(2):0, aprM3>0?+(aprTotal/aprM3).toFixed(2):0, (aprM3>0&&orcM3>0)?+(aprTotal/aprM3-orcTotal/orcM3).toFixed(2):0]
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(analData), 'Análise');
+
+    XLSX.writeFile(wb, 'relatorio_' + (o.codigo||'obra') + '.xlsx');
+    notify('Relatório exportado');
+  }
+
+  function setStatus(type, msg) {
+    document.getElementById('statusDot').className    = 'tdot ' + type;
+    document.getElementById('statusText').textContent = msg;
+  }
+
+  function notify(msg) {
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;bottom:24px;right:20px;background:#1e293b;color:#f1f5f9;padding:8px 14px;border-radius:5px;font-size:11px;font-weight:500;border-left:3px solid #7c3aed;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:500;';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 2600);
+  }
+
+  init();
+</script>
+</body>
+</html>

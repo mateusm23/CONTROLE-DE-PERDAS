@@ -185,6 +185,7 @@
           <th style="width:34px" class="c">#</th>
           <th style="min-width:140px">Elemento</th>
           <th style="min-width:120px">Pavimento / Fase</th>
+          <th style="width:110px" class="c">Data Concretagem</th>
           <th style="width:130px" class="r">Vol. Previsto (m³)</th>
           <th style="width:130px" class="r">Vol. Realizado (m³)</th>
           <th style="width:200px">% Execução</th>
@@ -195,7 +196,7 @@
       <tbody id="fisBody"></tbody>
       <tfoot>
         <tr>
-          <td colspan="3" style="color:#94a3b8;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase">Total</td>
+          <td colspan="4" style="color:#94a3b8;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase">Total</td>
           <td class="r" id="footPrev" style="color:#64748b;font-size:11px;font-weight:600">—</td>
           <td class="r" id="footReal" style="color:#64748b;font-size:11px;font-weight:600">—</td>
           <td colspan="3"></td>
@@ -236,7 +237,7 @@
       if (e1) throw e1;
 
       lines = (rows||[]).map(function(r) {
-        return { id:r.id, elemento:r.elemento||'', fase:r.fase||'', prev:+r.vol_previsto||0, real:+r.vol_realizado||0 };
+        return { id:r.id, elemento:r.elemento||'', fase:r.fase||'', data:r.data_concretagem||'', prev:+r.vol_previsto||0, real:+r.vol_realizado||0 };
       });
       setStatus('ok', 'Conectado');
       render();
@@ -267,6 +268,8 @@
           ' onchange="scheduleUpdate(\''+l.id+'\',\'elemento\',this.value)"></td>'+
         '<td><input type="text" value="'+esc(l.fase)+'" placeholder="Ex: Térreo, 1º Pav, Subsolo..."'+
           ' onchange="scheduleUpdate(\''+l.id+'\',\'fase\',this.value)"></td>'+
+        '<td style="width:110px;text-align:center"><input type="date" style="width:100%;border:none;background:transparent;font-family:inherit;font-size:11px;color:#334155;outline:none;cursor:pointer;text-align:center" value="'+esc(l.data)+'"'+
+          ' onchange="scheduleUpdate(\''+l.id+'\',\'data\',this.value)"></td>'+
         '<td style="width:130px"><input type="text" class="num" value="'+esc(fmtNum(l.prev))+'" placeholder="0"'+
           ' onfocus="this.value=\''+(l.prev||'')+'\';this.select()"'+
           ' onblur="var v=parseNum(this.value);scheduleUpdate(\''+l.id+'\',\'prev\',v);this.value=fmtNum(v)"'+
@@ -321,7 +324,7 @@
   function scheduleUpdate(id, field, value) {
     var l = lines.find(function(x){return x.id===id;});
     if (!l) return;
-    l[field] = (field==='prev'||field==='real') ? (+value||0) : value;
+    l[field] = (field==='prev'||field==='real') ? (+value||0) : (value||'');
     updateRow(id);
 
     clearTimeout(saveTimers[id]);
@@ -330,11 +333,12 @@
       var row = lines.find(function(x){return x.id===id;});
       if (!row) return;
       var { error } = await db.from('visao_fisica').update({
-        elemento:      row.elemento||'',
-        fase:          row.fase||'',
-        vol_previsto:  row.prev||0,
-        vol_realizado: row.real||0,
-        updated_at:    new Date().toISOString()
+        elemento:           row.elemento||'',
+        fase:               row.fase||'',
+        data_concretagem:   row.data||null,
+        vol_previsto:       row.prev||0,
+        vol_realizado:      row.real||0,
+        updated_at:         new Date().toISOString()
       }).eq('id', id);
       setStatus(error?'err':'ok', error?'Erro ao salvar':'Salvo');
     }, 700);
@@ -344,10 +348,10 @@
     if (!OBRA_ID) { notify('Aguarde a conexão...'); return; }
     setStatus('saving', 'Salvando...');
     var { data, error } = await db.from('visao_fisica').insert({
-      obra_id: OBRA_ID, elemento:'', fase:'', vol_previsto:0, vol_realizado:0
+      obra_id: OBRA_ID, elemento:'', fase:'', data_concretagem:null, vol_previsto:0, vol_realizado:0
     }).select().single();
     if (error) { setStatus('err', 'Erro ao criar'); return; }
-    lines.push({ id:data.id, elemento:'', fase:'', prev:0, real:0 });
+    lines.push({ id:data.id, elemento:'', fase:'', data:'', prev:0, real:0 });
     render(data.id);
     setStatus('ok', 'Salvo');
   }
@@ -362,10 +366,10 @@
   }
 
   function exportXLSX() {
-    var data = [['Elemento','Fase','VolPrevisto_m3','VolRealizado_m3','PctExecucao']];
+    var data = [['Elemento','Fase','DataConcretagem','VolPrevisto_m3','VolRealizado_m3','PctExecucao']];
     lines.forEach(function(l) {
       var pct = l.prev>0 ? +(l.real/l.prev*100).toFixed(2) : 0;
-      data.push([l.elemento||'', l.fase||'', l.prev||0, l.real||0, pct]);
+      data.push([l.elemento||'', l.fase||'', l.data||'', l.prev||0, l.real||0, pct]);
     });
     var ws = XLSX.utils.aoa_to_sheet(data);
     var wb = XLSX.utils.book_new();
