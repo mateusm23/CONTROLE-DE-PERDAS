@@ -153,9 +153,9 @@
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Exportar XLSX
     </button>
-    <a href="home.html" class="btn btn-primary">
+    <a href="#" id="btnVoltar" class="btn btn-primary">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Início
+      Painel
     </a>
   </div>
 </div>
@@ -209,7 +209,8 @@
   var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
   var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
   var db = supabase.createClient(SUPA_URL, SUPA_KEY);
-  var OBRA_ID = null;
+  var OBRA_ID = new URLSearchParams(window.location.search).get('obra');
+  if (!OBRA_ID) { window.location.href = 'home.html'; }
   var lines = [];
   var saveTimers = {};
 
@@ -230,10 +231,6 @@
   async function init() {
     setStatus('loading', 'Carregando...');
     try {
-      var { data: obra, error: e0 } = await db.from('obras').select('id').limit(1).single();
-      if (e0) throw e0;
-      OBRA_ID = obra.id;
-
       var { data: rows, error: e1 } = await db.from('visao_fisica')
         .select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true });
       if (e1) throw e1;
@@ -388,6 +385,7 @@
     setTimeout(function(){el.classList.remove('show');}, 2600);
   }
 
+  document.getElementById('btnVoltar').href = 'painel.html?obra=' + OBRA_ID;
   init();
 </script>
 </body>

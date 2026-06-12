@@ -3,177 +3,257 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal de Auditoria · Concreto Usinado</title>
+  <title>Portal de Auditoria · Concreto</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 13px; min-height: 100vh; }
 
-    .header { background: #0d1f35; padding: 28px 32px 22px; border-bottom: 1px solid #1b2d4a; }
-    .header-brand { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #277EBD; margin-bottom: 6px; }
-    .header-title { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -.3px; }
-
-    .obra-bar {
-      background: #1b2a4a; padding: 10px 32px;
-      border-bottom: 2px solid #277EBD;
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: 12px; color: #94a3b8;
-    }
-    .obra-bar strong { color: #e2e8f0; font-weight: 600; }
-    .conn { display: flex; align-items: center; gap: 6px; }
-    .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #4a6080; transition: background .3s; flex-shrink: 0; }
+    /* ── Topbar ── */
+    .topbar { background: #0d1f35; height: 52px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1b2d4a; }
+    .topbar-brand { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #277EBD; }
+    .topbar-title  { font-size: 13px; font-weight: 600; color: #e2e8f0; margin-left: 10px; padding-left: 10px; border-left: 1px solid #243659; }
+    .topbar-left   { display: flex; align-items: center; }
+    .topbar-right  { display: flex; align-items: center; gap: 6px; }
+    .conn-dot  { width: 6px; height: 6px; border-radius: 50%; background: #4a6080; margin-right: 6px; transition: background .3s; }
     .conn-dot.ok      { background: #22c55e; }
     .conn-dot.err     { background: #ef4444; }
     .conn-dot.loading { background: #f59e0b; animation: blink 1s infinite; }
     @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
-    .conn-text { font-size: 10px; color: #64748b; }
 
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 14px; border-radius: 5px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      border: none; font-family: inherit; transition: background .12s; text-decoration: none; white-space: nowrap;
+    }
+    .btn-ghost   { background: transparent; color: #94a3b8; border: 1px solid #243659; }
+    .btn-ghost:hover { background: rgba(255,255,255,.06); color: #cbd5e1; }
+    .btn-primary { background: #277EBD; color: #fff; }
+    .btn-primary:hover { background: #1d6ca6; }
+
+    /* ── Content ── */
     .main { padding: 28px 32px; }
-    .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 14px; }
+    .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title { font-size: 15px; font-weight: 700; color: #1b2a4a; }
+    .page-sub   { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 860px; }
+    /* ── Grid de obras ── */
+    .obras-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
-    .card {
-      background: #fff; border: 1px solid #e2e8f0; border-radius: 7px;
-      border-left: 4px solid #277EBD;
-      padding: 20px 20px 14px;
-      text-decoration: none; color: inherit;
-      display: flex; flex-direction: column; gap: 14px;
+    .obra-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+      overflow: hidden; display: flex; flex-direction: column;
       transition: box-shadow .15s, transform .12s;
     }
-    .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.08); transform: translateY(-1px); }
-    .card.teal   { border-left-color: #0f766e; }
-    .card.purple { border-left-color: #7c3aed; }
-    .card.slate  { border-left-color: #64748b; }
+    .obra-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.09); transform: translateY(-1px); }
 
-    .card-head { display: flex; align-items: center; gap: 10px; }
-    .card-icon {
-      width: 34px; height: 34px; border-radius: 7px;
-      background: #eff6ff; color: #277EBD;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    .obra-photo {
+      height: 140px; background: #1b2a4a; position: relative;
+      overflow: hidden; flex-shrink: 0;
     }
-    .card.teal   .card-icon { background: #f0fdfa; color: #0f766e; }
-    .card.purple .card-icon { background: #f5f3ff; color: #7c3aed; }
-    .card.slate  .card-icon { background: #f8fafc; color: #64748b; }
-
-    .card-name { font-size: 13px; font-weight: 700; color: #1b2a4a; margin-bottom: 1px; }
-    .card-desc { font-size: 10px; color: #94a3b8; }
-
-    .card-stats { display: flex; gap: 24px; }
-    .stat-val { font-size: 18px; font-weight: 700; color: #1e293b; font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 2px; }
-    .stat-lbl { font-size: 10px; color: #94a3b8; font-weight: 500; }
-
-    .card-foot { display: flex; justify-content: flex-end; padding-top: 10px; border-top: 1px solid #f1f5f9; }
-    .card-cta  { font-size: 11px; font-weight: 600; color: #277EBD; display: flex; align-items: center; gap: 4px; }
-    .card.teal   .card-cta { color: #0f766e; }
-    .card.purple .card-cta { color: #7c3aed; }
-    .card.slate  .card-cta { color: #64748b; }
-
-    .err-banner {
-      margin: 20px 32px 0; padding: 12px 16px;
-      background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px;
-      font-size: 12px; color: #c0392b; display: none;
+    .obra-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .obra-photo-placeholder {
+      width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #1b2a4a 0%, #243659 100%); color: #4a6080;
     }
+
+    .obra-status {
+      position: absolute; top: 10px; right: 10px;
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .status-ativo    { background: #dcfce7; color: #166534; }
+    .status-pausado  { background: #fef9c3; color: #854d0e; }
+    .status-concluido{ background: #dbeafe; color: #1d4ed8; }
+
+    .obra-body { padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .obra-name { font-size: 13px; font-weight: 700; color: #1b2a4a; }
+    .obra-meta { font-size: 11px; color: #94a3b8; }
+
+    .obra-stats { display: flex; gap: 0; padding: 10px 16px; border-top: 1px solid #f1f5f9; }
+    .obra-stat  { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .obra-stat + .obra-stat { border-left: 1px solid #f1f5f9; padding-left: 12px; }
+    .obra-stat-val { font-size: 12px; font-weight: 700; color: #1e293b; font-variant-numeric: tabular-nums; }
+    .obra-stat-lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+
+    .obra-actions { padding: 10px 16px; display: flex; gap: 6px; border-top: 1px solid #f1f5f9; }
+    .obra-actions .btn-acess { flex: 1; justify-content: center; background: #0d1f35; color: #e2e8f0; border-radius: 5px; height: 30px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; display: flex; align-items: center; gap: 5px; transition: background .12s; text-decoration: none; }
+    .obra-actions .btn-acess:hover { background: #1b2a4a; }
+    .obra-actions .btn-edit { width: 30px; height: 30px; border-radius: 5px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: background .12s; }
+    .obra-actions .btn-edit:hover { background: #f1f5f9; }
+    .obra-actions .btn-del  { width: 30px; height: 30px; border-radius: 5px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #cbd5e1; transition: background .12s, color .12s; }
+    .obra-actions .btn-del:hover { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
+
+    /* ── Empty state ── */
+    .empty { padding: 64px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; grid-column: 1/-1; }
+    .empty-title { font-size: 14px; font-weight: 600; color: #475569; }
+    .empty-sub   { font-size: 12px; color: #94a3b8; }
+
+    /* ── Modal ── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: none; align-items: center; justify-content: center; z-index: 200;
+    }
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: #fff; border-radius: 8px; width: 480px; max-width: 95vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;
+    }
+    .modal-head {
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .modal-head-title { font-size: 13px; font-weight: 700; color: #1b2a4a; }
+    .modal-close { width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { background: #f1f5f9; color: #475569; }
+
+    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+
+    /* Photo upload */
+    .photo-zone {
+      height: 120px; border: 2px dashed #e2e8f0; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; overflow: hidden; position: relative;
+      transition: border-color .15s; background: #f8fafc;
+    }
+    .photo-zone:hover { border-color: #277EBD; }
+    .photo-zone img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .photo-hint { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #94a3b8; font-size: 11px; pointer-events: none; }
+
+    /* Fields */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #64748b; }
+    .field input, .field select {
+      height: 34px; padding: 0 10px; border: 1px solid #e2e8f0; border-radius: 5px;
+      font-family: inherit; font-size: 12px; color: #1e293b; outline: none;
+      transition: border-color .1s; background: #fff;
+    }
+    .field input:focus, .field select:focus { border-color: #277EBD; box-shadow: 0 0 0 3px rgba(39,126,189,.08); }
+
+    .modal-foot { padding: 14px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+    .btn-cancel { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .btn-cancel:hover { background: #e2e8f0; }
+
+    /* Notif */
+    .notif {
+      position: fixed; bottom: 24px; right: 20px;
+      background: #1e293b; color: #f1f5f9; padding: 8px 14px;
+      border-radius: 5px; font-size: 11px; font-weight: 500;
+      border-left: 3px solid #277EBD;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      opacity: 0; transform: translateY(6px);
+      transition: opacity .18s, transform .18s; pointer-events: none; z-index: 500;
+    }
+    .notif.show { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="header-brand">Gerenciadora Trinus</div>
-  <div class="header-title">Portal de Auditoria de Concreto</div>
-</div>
+<div class="notif" id="notif"></div>
 
-<div class="obra-bar">
-  <span id="obraInfo">Carregando...</span>
-  <div class="conn">
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-brand">Gerenciadora Trinus</span>
+    <span class="topbar-title">Portal de Auditoria de Concreto</span>
+  </div>
+  <div class="topbar-right">
     <div class="conn-dot loading" id="connDot"></div>
-    <span class="conn-text" id="connText">Conectando ao banco de dados...</span>
+    <button class="btn btn-ghost" onclick="openModal()">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Nova obra
+    </button>
   </div>
 </div>
 
-<div class="err-banner" id="errBanner"></div>
-
 <div class="main">
-  <div class="section-label">Módulos</div>
-  <div class="grid">
+  <div class="page-head">
+    <div>
+      <div class="page-title">Obras</div>
+      <div class="page-sub">Selecione uma obra para acessar os módulos de auditoria</div>
+    </div>
+  </div>
+  <div class="obras-grid" id="obrasGrid">
+    <div class="empty"><div class="empty-title">Carregando...</div></div>
+  </div>
+</div>
 
-    <a class="card" href="orcamento.html">
-      <div class="card-head">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18M3 15h18M9 3v18" stroke="currentColor" stroke-width="1.5"/></svg>
-        </div>
-        <div>
-          <div class="card-name">Orçamento</div>
-          <div class="card-desc">Composição de custos por item</div>
-        </div>
-      </div>
-      <div class="card-stats">
-        <div><div class="stat-val" id="orcTotal">—</div><div class="stat-lbl">Total orçado</div></div>
-        <div><div class="stat-val" id="orcItens">—</div><div class="stat-lbl">Itens</div></div>
-      </div>
-      <div class="card-foot">
-        <span class="card-cta">Acessar <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      </div>
-    </a>
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-head-title" id="modalTitle">Nova obra</span>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
 
-    <a class="card teal" href="visao-fisica.html">
-      <div class="card-head">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="7" y="10" width="3" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="6" width="3" height="12" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
-        </div>
-        <div>
-          <div class="card-name">Visão Física</div>
-          <div class="card-desc">Evolução de execução por elemento</div>
+      <div class="photo-zone" id="photoZone" onclick="document.getElementById('photoInput').click()">
+        <img id="photoPreview" alt="Preview">
+        <div class="photo-hint" id="photoHint">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#cbd5e1" stroke-width="1.5"/><circle cx="8.5" cy="10.5" r="1.5" stroke="#cbd5e1" stroke-width="1.5"/><path d="M3 16l4-4 3 3 3-4 5 5" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Clique para adicionar foto de capa</span>
         </div>
       </div>
-      <div class="card-stats">
-        <div><div class="stat-val" id="fisPct">—</div><div class="stat-lbl">Executado</div></div>
-        <div><div class="stat-val" id="fisItens">—</div><div class="stat-lbl">Elementos</div></div>
-      </div>
-      <div class="card-foot">
-        <span class="card-cta">Acessar <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      </div>
-    </a>
+      <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="previewPhoto(this)">
 
-    <a class="card purple" href="apropriacao.html">
-      <div class="card-head">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.5"/><path d="M9 8h6M9 12h6M9 16h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </div>
-        <div>
-          <div class="card-name">Apropriações</div>
-          <div class="card-desc">Registros de custo e notas fiscais</div>
+      <div class="field-row">
+        <div class="field" style="grid-column:1/-1">
+          <label>Nome da obra *</label>
+          <input type="text" id="fNome" placeholder="Ex: BE Bonifácio">
         </div>
       </div>
-      <div class="card-stats">
-        <div><div class="stat-val" id="aprTotal">—</div><div class="stat-lbl">Total apropriado</div></div>
-        <div><div class="stat-val" id="aprItens">—</div><div class="stat-lbl">NFs</div></div>
+      <div class="field-row">
+        <div class="field">
+          <label>Código</label>
+          <input type="text" id="fCodigo" placeholder="Ex: OBRBO">
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="fStatus">
+            <option value="ativo">Ativo</option>
+            <option value="pausado">Pausado</option>
+            <option value="concluido">Concluído</option>
+          </select>
+        </div>
       </div>
-      <div class="card-foot">
-        <span class="card-cta">Acessar <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div class="field-row">
+        <div class="field" style="grid-column:1/-1">
+          <label>Localização</label>
+          <input type="text" id="fLocal" placeholder="Ex: Maringá - PR">
+        </div>
       </div>
-    </a>
+      <div class="field-row">
+        <div class="field">
+          <label>Responsável</label>
+          <input type="text" id="fResp" placeholder="Nome do engenheiro">
+        </div>
+        <div class="field">
+          <label>Construtora</label>
+          <input type="text" id="fConst" placeholder="Razão social">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Data de Início</label>
+          <input type="text" id="fData" placeholder="MM/AAAA">
+        </div>
+      </div>
 
-    <a class="card slate" href="index.html">
-      <div class="card-head">
-        <div class="card-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="currentColor" stroke-width="1.5"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </div>
-        <div>
-          <div class="card-name">Relatório</div>
-          <div class="card-desc">Visualizar relatório consolidado</div>
-        </div>
-      </div>
-      <div class="card-stats">
-        <div><div class="stat-val" style="font-size:14px;color:#64748b" id="relObra">—</div><div class="stat-lbl">Obra</div></div>
-        <div><div class="stat-val" style="font-size:14px;color:#64748b">Rev. 00</div><div class="stat-lbl">Revisão</div></div>
-      </div>
-      <div class="card-foot">
-        <span class="card-cta">Abrir relatório <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      </div>
-    </a>
-
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btnSalvar" onclick="saveObra()">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M13 4L6.5 11 3 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Salvar
+      </button>
+    </div>
   </div>
 </div>
 
@@ -182,52 +262,227 @@
   var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
   var db = supabase.createClient(SUPA_URL, SUPA_KEY);
 
+  var obras  = [];
+  var stats  = {};
+  var editId = null;
+  var newPhotoFile = null;
+
+  /* ── Formatação ── */
   function fmtBRL(n) {
     if (!n) return 'R$ 0';
-    if (n >= 1000000) return 'R$ ' + (n/1000000).toFixed(1).replace('.',',') + 'M';
-    if (n >= 1000)    return 'R$ ' + Math.round(n/1000) + 'K';
-    return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+    if (n >= 1000000) return 'R$' + (n/1000000).toFixed(1).replace('.',',') + 'M';
+    if (n >= 1000)    return 'R$' + Math.round(n/1000) + 'K';
+    return 'R$' + Math.round(n).toLocaleString('pt-BR');
   }
 
+  /* ── Init ── */
   async function init() {
-    setConn('loading', 'Conectando...');
+    setConn('loading');
     try {
-      var { data: obra, error: e0 } = await db.from('obras').select('*').limit(1).single();
+      var { data: o, error: e0 } = await db.from('obras').select('*').order('created_at', { ascending: true });
       if (e0) throw e0;
+      obras = o || [];
 
-      document.getElementById('obraInfo').innerHTML =
-        '<strong>' + obra.nome + '</strong> · ' + (obra.codigo||'') + ' · ' + (obra.localizacao||'');
-      document.getElementById('relObra').textContent = obra.nome;
+      // Carregar stats de todas as obras em paralelo
+      var ids = obras.map(function(o){ return o.id; });
+      if (ids.length) {
+        var [r1, r2, r3] = await Promise.all([
+          db.from('orcamento').select('obra_id, qtd_orc, rs_unitario').in('obra_id', ids),
+          db.from('visao_fisica').select('obra_id, vol_previsto, vol_realizado').in('obra_id', ids),
+          db.from('apropriacao').select('obra_id').in('obra_id', ids)
+        ]);
+        stats = {};
+        obras.forEach(function(o) {
+          var orc = (r1.data||[]).filter(function(r){return r.obra_id===o.id;});
+          var fis = (r2.data||[]).filter(function(r){return r.obra_id===o.id;});
+          var apr = (r3.data||[]).filter(function(r){return r.obra_id===o.id;});
+          var orcT  = orc.reduce(function(s,r){return s+(+r.qtd_orc||0)*(+r.rs_unitario||0);},0);
+          var prev  = fis.reduce(function(s,r){return s+(+r.vol_previsto||0);},0);
+          var real  = fis.reduce(function(s,r){return s+(+r.vol_realizado||0);},0);
+          stats[o.id] = { orcTotal: orcT, pct: prev>0?Math.round(real/prev*100):0, nfs: apr.length };
+        });
+      }
 
-      var { data: orc }  = await db.from('orcamento').select('qtd_orc,rs_unitario').eq('obra_id', obra.id);
-      var orcT = (orc||[]).reduce(function(s,r){return s+(+r.qtd_orc||0)*(+r.rs_unitario||0);},0);
-      document.getElementById('orcTotal').textContent = fmtBRL(orcT);
-      document.getElementById('orcItens').textContent = (orc||[]).length;
-
-      var { data: fis }  = await db.from('visao_fisica').select('vol_previsto,vol_realizado').eq('obra_id', obra.id);
-      var fisPrev = (fis||[]).reduce(function(s,r){return s+(+r.vol_previsto||0);},0);
-      var fisReal = (fis||[]).reduce(function(s,r){return s+(+r.vol_realizado||0);},0);
-      document.getElementById('fisPct').textContent   = fisPrev > 0 ? Math.round(fisReal/fisPrev*100)+'%' : '0%';
-      document.getElementById('fisItens').textContent = (fis||[]).length;
-
-      var { data: apr }  = await db.from('apropriacao').select('volume,rs_unitario').eq('obra_id', obra.id);
-      var aprT = (apr||[]).reduce(function(s,r){return s+(+r.volume||0)*(+r.rs_unitario||0);},0);
-      document.getElementById('aprTotal').textContent = fmtBRL(aprT);
-      document.getElementById('aprItens').textContent = (apr||[]).length;
-
-      setConn('ok', 'Conectado');
+      setConn('ok');
+      render();
     } catch(e) {
-      setConn('err', 'Erro de conexão');
-      var b = document.getElementById('errBanner');
-      b.style.display = 'block';
-      b.textContent = 'Não foi possível conectar ao banco de dados. Verifique se o SQL foi executado no Supabase. Detalhe: ' + e.message;
+      setConn('err');
+      document.getElementById('obrasGrid').innerHTML =
+        '<div class="empty"><div class="empty-title">Erro de conexão</div><div class="empty-sub">'+e.message+'</div></div>';
     }
   }
 
-  function setConn(state, text) {
-    document.getElementById('connDot').className = 'conn-dot ' + state;
-    document.getElementById('connText').textContent = text;
+  /* ── Render ── */
+  function render() {
+    var grid = document.getElementById('obrasGrid');
+    if (!obras.length) {
+      grid.innerHTML =
+        '<div class="empty">'+
+        '<svg width="48" height="48" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#cbd5e1" stroke-width="1.5"/><path d="M3 9h18M9 3v6" stroke="#cbd5e1" stroke-width="1.5"/></svg>'+
+        '<div class="empty-title">Nenhuma obra cadastrada</div>'+
+        '<div class="empty-sub">Clique em "Nova obra" para começar</div>'+
+        '</div>';
+      return;
+    }
+
+    grid.innerHTML = obras.map(function(o) {
+      var s   = stats[o.id] || { orcTotal:0, pct:0, nfs:0 };
+      var cls = { ativo:'status-ativo', pausado:'status-pausado', concluido:'status-concluido' }[o.status] || 'status-ativo';
+      var lbl = { ativo:'Ativo', pausado:'Pausado', concluido:'Concluído' }[o.status] || 'Ativo';
+      var photo = o.foto_url
+        ? '<img src="'+o.foto_url+'" alt="'+esc(o.nome)+'">'
+        : '<div class="obra-photo-placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-6 9 6v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" stroke-width="1.2"/><path d="M9 22V12h6v10" stroke="currentColor" stroke-width="1.2"/></svg></div>';
+      return (
+        '<div class="obra-card">'+
+        '<div class="obra-photo">'+photo+'<span class="obra-status '+cls+'">'+lbl+'</span></div>'+
+        '<div class="obra-body">'+
+          '<div class="obra-name">'+esc(o.nome)+'</div>'+
+          '<div class="obra-meta">'+(o.codigo?esc(o.codigo)+' · ':'')+esc(o.localizacao||'')+(o.responsavel?' · '+esc(o.responsavel):'')+'</div>'+
+        '</div>'+
+        '<div class="obra-stats">'+
+          '<div class="obra-stat"><div class="obra-stat-val">'+fmtBRL(s.orcTotal)+'</div><div class="obra-stat-lbl">Orçado</div></div>'+
+          '<div class="obra-stat"><div class="obra-stat-val">'+s.pct+'%</div><div class="obra-stat-lbl">Executado</div></div>'+
+          '<div class="obra-stat"><div class="obra-stat-val">'+s.nfs+'</div><div class="obra-stat-lbl">NFs</div></div>'+
+        '</div>'+
+        '<div class="obra-actions">'+
+          '<a class="btn-acess" href="painel.html?obra='+o.id+'">Acessar <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>'+
+          '<button class="btn-edit" onclick="editObra(\''+o.id+'\')" title="Editar"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M11 2l3 3-9 9H2v-3L11 2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
+          '<button class="btn-del"  onclick="deleteObra(\''+o.id+'\')" title="Excluir"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>'+
+        '</div>'+
+        '</div>'
+      );
+    }).join('');
   }
+
+  /* ── Modal ── */
+  function openModal(id) {
+    editId = id || null;
+    newPhotoFile = null;
+    document.getElementById('modalTitle').textContent = id ? 'Editar obra' : 'Nova obra';
+
+    var o = id ? obras.find(function(x){return x.id===id;}) : {};
+    document.getElementById('fNome').value   = o.nome       || '';
+    document.getElementById('fCodigo').value = o.codigo     || '';
+    document.getElementById('fStatus').value = o.status     || 'ativo';
+    document.getElementById('fLocal').value  = o.localizacao|| '';
+    document.getElementById('fResp').value   = o.responsavel|| '';
+    document.getElementById('fConst').value  = o.construtora|| '';
+    document.getElementById('fData').value   = o.data_inicio|| '';
+
+    var prev = document.getElementById('photoPreview');
+    var hint = document.getElementById('photoHint');
+    if (o.foto_url) { prev.src = o.foto_url; prev.style.display='block'; hint.style.display='none'; }
+    else            { prev.style.display='none'; hint.style.display='flex'; }
+
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('fNome').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('overlay').classList.remove('open');
+    document.getElementById('photoInput').value = '';
+  }
+
+  function previewPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    newPhotoFile = input.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var prev = document.getElementById('photoPreview');
+      prev.src = e.target.result; prev.style.display = 'block';
+      document.getElementById('photoHint').style.display = 'none';
+    };
+    reader.readAsDataURL(newPhotoFile);
+  }
+
+  async function saveObra() {
+    var nome = document.getElementById('fNome').value.trim();
+    if (!nome) { document.getElementById('fNome').focus(); return; }
+
+    var btn = document.getElementById('btnSalvar');
+    btn.textContent = 'Salvando...'; btn.disabled = true;
+
+    try {
+      var payload = {
+        nome:        nome,
+        codigo:      document.getElementById('fCodigo').value.trim(),
+        status:      document.getElementById('fStatus').value,
+        localizacao: document.getElementById('fLocal').value.trim(),
+        responsavel: document.getElementById('fResp').value.trim(),
+        construtora: document.getElementById('fConst').value.trim(),
+        data_inicio: document.getElementById('fData').value.trim()
+      };
+
+      // Upload foto se selecionada
+      if (newPhotoFile) {
+        var obraId = editId || 'temp_' + Date.now();
+        var ext    = newPhotoFile.name.split('.').pop();
+        var path   = obraId + '/capa.' + ext;
+        var { error: upErr } = await db.storage.from('fotos').upload(path, newPhotoFile, { upsert: true });
+        if (!upErr) {
+          var { data: urlData } = db.storage.from('fotos').getPublicUrl(path);
+          payload.foto_url = urlData.publicUrl;
+        }
+      }
+
+      if (editId) {
+        var { error } = await db.from('obras').update(payload).eq('id', editId);
+        if (error) throw error;
+        var idx = obras.findIndex(function(o){return o.id===editId;});
+        if (idx >= 0) obras[idx] = Object.assign(obras[idx], payload);
+        notify('Obra atualizada');
+      } else {
+        var { data: newObra, error: e2 } = await db.from('obras').insert(payload).select().single();
+        if (e2) throw e2;
+        // Se foto foi feita com temp_id, mover para id real
+        if (newPhotoFile && payload.foto_url && payload.foto_url.includes('temp_')) {
+          var newPath = newObra.id + '/capa.' + newPhotoFile.name.split('.').pop();
+          await db.storage.from('fotos').move(path, newPath);
+          var { data: urlD2 } = db.storage.from('fotos').getPublicUrl(newPath);
+          await db.from('obras').update({ foto_url: urlD2.publicUrl }).eq('id', newObra.id);
+          newObra.foto_url = urlD2.publicUrl;
+        }
+        obras.push(newObra);
+        stats[newObra.id] = { orcTotal:0, pct:0, nfs:0 };
+        notify('Obra criada');
+      }
+
+      render();
+      closeModal();
+    } catch(e) {
+      notify('Erro: ' + e.message);
+    } finally {
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M13 4L6.5 11 3 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Salvar';
+      btn.disabled = false;
+    }
+  }
+
+  function editObra(id) { openModal(id); }
+
+  async function deleteObra(id) {
+    var o = obras.find(function(x){return x.id===id;});
+    if (!confirm('Excluir a obra "' + (o ? o.nome : '') + '" e todos os seus dados?\n\nEsta ação não pode ser desfeita.')) return;
+    var { error } = await db.from('obras').delete().eq('id', id);
+    if (error) { notify('Erro ao excluir'); return; }
+    obras = obras.filter(function(o){return o.id!==id;});
+    delete stats[id];
+    render();
+    notify('Obra excluída');
+  }
+
+  /* ── Helpers ── */
+  function setConn(s) { document.getElementById('connDot').className = 'conn-dot ' + s; }
+  function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function notify(msg) {
+    var el = document.getElementById('notif');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(function(){el.classList.remove('show');}, 2600);
+  }
+
+  // Fecha modal ao clicar fora
+  document.getElementById('overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
 
   init();
 </script>
