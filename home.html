@@ -274,7 +274,13 @@
   var _sessao = JSON.parse(localStorage.getItem('usuario') || 'null');
   if (!_sessao) { window.location.href = 'login.html'; }
   document.getElementById('topUserName').textContent = _sessao ? _sessao.nome : '';
-  if (_sessao && _sessao.perfil === 'master') { document.getElementById('btnAdmin').style.display = ''; }
+  if (_sessao && _sessao.perfil === 'master') {
+    document.getElementById('btnAdmin').style.display = '';
+  } else {
+    // Usuário normal não cria obras
+    var _btnNova = document.querySelector('.btn.btn-ghost[onclick="openModal()"]');
+    if (_btnNova) _btnNova.style.display = 'none';
+  }
   function logout() { localStorage.removeItem('usuario'); window.location.href = 'login.html'; }
 
   var obras  = [];
@@ -294,9 +300,25 @@
   async function init() {
     setConn('loading');
     try {
-      var { data: o, error: e0 } = await db.from('obras').select('*').order('created_at', { ascending: true });
-      if (e0) throw e0;
-      obras = o || [];
+      var obrasRaw;
+      if (_sessao.perfil === 'master') {
+        var { data, error: e0 } = await db.from('obras').select('*').order('created_at', { ascending: true });
+        if (e0) throw e0;
+        obrasRaw = data || [];
+      } else {
+        // Usuário normal: busca só as obras liberadas na tabela acessos
+        var { data: acessos, error: ea } = await db.from('acessos').select('obra_id').eq('usuario_id', _sessao.id);
+        if (ea) throw ea;
+        var ids_liberados = (acessos || []).map(function(a){ return a.obra_id; });
+        if (!ids_liberados.length) {
+          obrasRaw = [];
+        } else {
+          var { data, error: e1 } = await db.from('obras').select('*').in('id', ids_liberados).order('created_at', { ascending: true });
+          if (e1) throw e1;
+          obrasRaw = data || [];
+        }
+      }
+      obras = obrasRaw;
 
       // Carregar stats de todas as obras em paralelo
       var ids = obras.map(function(o){ return o.id; });
@@ -331,11 +353,13 @@
   function render() {
     var grid = document.getElementById('obrasGrid');
     if (!obras.length) {
+      var emptyTitle = _sessao.perfil === 'master' ? 'Nenhuma obra cadastrada' : 'Nenhuma obra liberada';
+      var emptySub   = _sessao.perfil === 'master' ? 'Clique em "Nova obra" para começar' : 'Solicite acesso ao administrador do sistema';
       grid.innerHTML =
         '<div class="empty">'+
         '<svg width="48" height="48" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#cbd5e1" stroke-width="1.5"/><path d="M3 9h18M9 3v6" stroke="#cbd5e1" stroke-width="1.5"/></svg>'+
-        '<div class="empty-title">Nenhuma obra cadastrada</div>'+
-        '<div class="empty-sub">Clique em "Nova obra" para começar</div>'+
+        '<div class="empty-title">'+emptyTitle+'</div>'+
+        '<div class="empty-sub">'+emptySub+'</div>'+
         '</div>';
       return;
     }
