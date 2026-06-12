@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capa — Relatório Concreto</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="../css/main.css" rel="stylesheet">
+  <style>
+
+    /* ── CAPA ── */
+    .capa {
+      display: flex;
+      height: 520px;
+      overflow: hidden;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.15);
+    }
+
+    /* Painel esquerdo */
+    .capa-left {
+      flex: 0 0 42%;
+      background: #0d1f35;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+    .capa-left::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: rgba(39,126,189,.12);
+      pointer-events: none;
+    }
+
+    .capa-marca {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .capa-logo-wrap {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+    }
+    .capa-logo {
+      display: block;
+      height: 18px;
+      width: auto;
+      max-width: 120px;
+      object-fit: contain;
+    }
+    .capa-marca-tag {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #277EBD;
+    }
+    .capa-marca-nome {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: .3px;
+    }
+
+    .capa-titulo {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .capa-titulo-tag {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: #277EBD;
+      margin-bottom: 12px;
+    }
+    .capa-titulo-main {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+    .capa-titulo-sub {
+      font-size: 13px;
+      font-weight: 400;
+      color: rgba(255,255,255,.5);
+      line-height: 1.5;
+    }
+    .capa-divider {
+      width: 36px;
+      height: 3px;
+      background: #277EBD;
+      border-radius: 2px;
+      margin: 20px 0;
+    }
+
+    .capa-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .capa-meta-row {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .capa-meta-lbl {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,.35);
+      flex: 0 0 60px;
+    }
+    .capa-meta-val {
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,.85);
+    }
+
+    .capa-badges {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .capa-badge {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 4px;
+      padding: 6px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .capa-badge-lbl { font-size: 8px; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: 1px; }
+    .capa-badge-val { font-size: 12px; font-weight: 700; color: #fff; }
+
+    /* Painel direito — foto */
+    .capa-right {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .capa-right img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center center;
+      display: block;
+      padding: 24px 20px;
+    }
+    .capa-right-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, rgba(13,31,53,.2) 0%, transparent 30%);
+    }
+    .capa-right-label {
+      position: absolute;
+      bottom: 18px;
+      right: 20px;
+      text-align: right;
+    }
+    .capa-right-label span {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      color: #0d1f35;
+      letter-spacing: .5px;
+    }
+    .capa-right-label small {
+      font-size: 9px;
+      color: #1b2a4a;
+    }
+
+    /* ── Blocos abaixo ── */
+    body { padding: 20px 26px; }
+
+    .gt-table { min-width: 970px; }
+    .gt-row   { display: flex; align-items: stretch; }
+    .gt-info-blank { flex: 0 0 515px; background: var(--navy); }
+    .gt-info-cols  { flex: 0 0 515px; display: flex; }
+    .gt-bars-area  { flex: 1; position: relative; min-width: 0; }
+    .gt-yr-wrap { display: flex; }
+    .gt-yr {
+      background: var(--navy); color: #fff;
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-align: center; padding: 4px 0;
+    }
+    .gt-yr:not(:last-child) { border-right: 1px solid rgba(255,255,255,.2); }
+    .gt-mths-wrap { display: flex; border-bottom: 2px solid var(--rule); }
+    .gt-mth {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--light);
+      border-right: 1px solid var(--rule2);
+      padding: 3px 1px; gap: 1px;
+    }
+    .gt-mth:last-child { border-right: none; }
+    .gt-mth-n { font-size: 7px; font-weight: 700; color: var(--sub); text-transform: uppercase; line-height: 1; }
+    .gt-mth-c { font-size: 9px; font-weight: 700; line-height: 1; color: var(--rule); }
+    .gt-mth-c.on { color: var(--gold); }
+    .gt-th {
+      display: flex; align-items: center; justify-content: center;
+      background: var(--light);
+      border-bottom: 2px solid var(--rule);
+      border-right: 1px solid var(--rule2);
+      padding: 0 4px;
+      font-size: 8px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .4px;
+      color: var(--sub); white-space: nowrap; text-align: center;
+    }
+    .gt-th:last-child { border-right: 1px solid var(--rule2); }
+    .gt-info-cols > *:nth-child(1) { width: 185px; flex-shrink: 0; }
+    .gt-info-cols > *:nth-child(2) { width:  46px; flex-shrink: 0; }
+    .gt-info-cols > *:nth-child(3) { width:  58px; flex-shrink: 0; }
+    .gt-info-cols > *:nth-child(4) { width:  58px; flex-shrink: 0; }
+    .gt-info-cols > *:nth-child(5) { width:  60px; flex-shrink: 0; }
+    .gt-info-cols > *:nth-child(6) { width:  58px; flex-shrink: 0; }
+    .gt-info-cols > *:nth-child(7) { width:  50px; flex-shrink: 0; }
+    .gt-td {
+      display: flex; align-items: center; justify-content: center;
+      height: 22px; padding: 0 4px;
+      border-bottom: 1px solid var(--rule2);
+      border-right: 1px solid var(--rule2);
+      font-size: 9px; color: var(--text); text-align: center;
+      overflow: hidden; white-space: nowrap;
+    }
+    .gt-td.bld  { font-weight: 600; color: var(--navy); font-size: 9px; justify-content: flex-start; }
+    .gt-td.nil  { color: var(--rule); }
+    .gt-td.rh   { color: #166534; font-weight: 500; }
+    .gt-td.rrh  { color: #92400e; font-weight: 500; }
+    .gt-td:last-child { border-right: 1px solid var(--rule2); }
+    .gt-dr.ev .gt-td,
+    .gt-dr.ev .gt-bar-cell { background: var(--light); }
+    .gt-bar-cell { height: 22px; border-bottom: 1px solid var(--rule2); }
+    .gt-div-m     { position:absolute; top:0; bottom:0; width:1px;   background:var(--rule2); pointer-events:none; }
+    .gt-div-y     { position:absolute; top:0; bottom:0; width:2px;   background:var(--navy);  opacity:.4; pointer-events:none; z-index:1; }
+    .gt-div-today { position:absolute; top:0; bottom:0; width:1.5px; background:var(--gold);  pointer-events:none; z-index:2; }
+    .gt-bar { position:absolute; border-radius:2px; }
+    .gt-bar.plan   { height:5px; top: 2px; background:var(--navy);  box-shadow:0 1px 2px rgba(27,42,74,.25); }
+    .gt-bar.real   { height:5px; top:14px; background:#166534; box-shadow:0 1px 2px rgba(22,101,52,.2); }
+    .gt-bar.tend   { height:5px; top:14px; background:#b45309; opacity:.65; }
+    .gt-bar.reprog { height:5px; top:14px; background:#b45309; }
+    .gt-legend {
+      display: flex; flex-wrap: wrap; gap: 16px;
+      padding: 9px 16px;
+      border-top: 1px solid var(--rule2);
+      font-size: 10px; color: var(--sub);
+    }
+    .gt-leg-item { display:flex; align-items:center; gap:6px; }
+    .gt-leg-sw   { height:7px; border-radius:1px; }
+    .gt-leg-sw.plan   { width:18px; background:var(--navy); }
+    .gt-leg-sw.real   { width:18px; background:#166534; }
+    .gt-leg-sw.tend   { width:18px; background:#b45309; opacity:.65; }
+    .gt-leg-sw.reprog { width:18px; background:#b45309; }
+    .gt-leg-today { width:2px; height:12px; background:var(--gold); border-radius:1px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ CAPA ══ -->
+<div class="capa">
+
+  <div class="capa-left">
+    <div class="capa-marca">
+      <span class="capa-marca-tag" data-txt="C01">Engenharia de Custos &amp; BI</span>
+      <span class="capa-marca-nome" data-txt="C02">Trinus Capital</span>
+    </div>
+
+    <div class="capa-titulo">
+      <div class="capa-titulo-tag" data-txt="C03">Relatório de Auditoria</div>
+      <div class="capa-titulo-main">Concreto<br>Usinado</div>
+      <div class="capa-titulo-sub">Análise de apropriação,<br>desvios e tendência de custos</div>
+      <div class="capa-divider"></div>
+
+      <div class="capa-meta">
+        <div class="capa-meta-row">
+          <span class="capa-meta-lbl">Obra</span>
+          <span class="capa-meta-val" data-txt="C06">BE Bonifácio — OBRBO</span>
+        </div>
+        <div class="capa-meta-row">
+          <span class="capa-meta-lbl">Empresa</span>
+          <span class="capa-meta-val" data-txt="C07">289 — BE Bonifácio Emp. Imob. Ltda</span>
+        </div>
+        <div class="capa-meta-row">
+          <span class="capa-meta-lbl">Base</span>
+          <span class="capa-meta-val" id="capaBase">Junho / 2026</span>
+        </div>
+        <div class="capa-meta-row">
+          <span class="capa-meta-lbl">Revisão</span>
+          <span class="capa-meta-val" data-txt="C09">Rev. 00</span>
+        </div>
+      </div>
+
+      <div class="capa-badges">
+        <div class="capa-badge">
+          <span class="capa-badge-lbl" data-txt="C10">Orçado</span>
+          <span class="capa-badge-val" id="capaBadge1">R$ 2.088.000</span>
+        </div>
+        <div class="capa-badge">
+          <span class="capa-badge-lbl" data-txt="C12">Apropriado</span>
+          <span class="capa-badge-val" id="capaBadge2">R$ 634.069</span>
+        </div>
+        <div class="capa-badge">
+          <span class="capa-badge-lbl" data-txt="C14">Tendência</span>
+          <span class="capa-badge-val" id="capaBadge3">R$ 2.404.053</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:8px;color:rgba(255,255,255,.6);letter-spacing:.5px;" id="capaRodape">
+      Gerenciadora Trinus · Engenharia de Custos &amp; BI · Jun/2026
+    </div>
+  </div>
+
+  <div class="capa-right">
+    <img src="../Imagens/IMAGEM CAPA.png" alt="Imagem Capa">
+    <div class="capa-right-overlay"></div>
+    <div class="capa-logo-wrap">
+      <img src="../Imagens/LOGO.png" alt="Logo" class="capa-logo">
+    </div>
+    <div class="capa-right-label">
+      <span data-txt="C16">BE Bonifácio</span>
+      <small data-txt="C17">São Paulo — SP</small>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ A — PLANEJAMENTO ══ -->
+<div class="blk">
+  <div class="blk-head">
+    <span class="blk-num">A</span>
+    <span class="blk-title" data-txt="A01">Planejamento — Concretagem da Estrutura</span>
+    <span class="blk-sub" data-txt="A02">Orçamento aprovado de concreto usinado · Composição por insumo · Cronograma de concretagem previsto vs. realizado</span>
+  </div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-head">
+      <span class="card-head-title" data-txt="A03">Composição Orçamentária — Concreto Usinado</span>
+      <span class="card-head-note" data-txt="A04">Orçamento Aprovado Rev.00 · Referência para cálculo de desvios</span>
+    </div>
+    <table class="tbl">
+      <thead><tr>
+        <th data-txt="A05">Grupo de Insumo</th>
+        <th class="c" data-txt="A06">Unidade</th>
+        <th class="c" data-txt="A07">Qtd. Orçada</th>
+        <th class="c" data-txt="A08">R$ Unitário</th>
+        <th class="c" data-txt="A09">R$ Total Orçado</th>
+        <th class="c" data-txt="A10">% do Total</th>
+        <th class="c" style="width:110px" data-txt="A11">Peso no Grupo</th>
+      </tr></thead>
+      <tbody id="tblA"></tbody>
+      <tfoot id="tblAFoot"></tfoot>
+    </table>
+    <div class="tbl-note" data-txt="A13">
+      <strong>BAC (Budget at Completion):</strong> orçamento aprovado de concreto usinado (FCK, bombeamento e lançamento). Base de referência para cálculo do desvio de custo unitário, perda de quantidade e projeção do custo final (EAC).
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title" data-txt="A14">Cronograma de Concretagem — Planejado vs. Realizado</span>
+      <span class="card-head-note" id="ganttNote">Out/2025 – Fev/2027 · Base Jun/2026 · Avanço por pavimento</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <div id="gantt"></div>
+    </div>
+    <div class="gt-legend">
+      <div class="gt-leg-item"><div class="gt-leg-sw plan"></div><span data-txt="A16">Planejado</span></div>
+      <div class="gt-leg-item"><div class="gt-leg-sw real"></div><span data-txt="A17">Realizado</span></div>
+      <div class="gt-leg-item"><div class="gt-leg-sw tend"></div><span data-txt="A18">Tendência (em andamento)</span></div>
+      <div class="gt-leg-item"><div class="gt-leg-sw reprog"></div><span data-txt="A19">Reprogramado</span></div>
+      <div class="gt-leg-item"><div class="gt-leg-today"></div><span id="ganttToday">Hoje — Base Jun/2026</span></div>
+    </div>
+    <div class="tbl-note">
+      <strong>I.Atual / F.Atual:</strong> datas de início e fim de concretagem mais recentes por pavimento.
+      <span style="color:#166534;font-weight:500">Verde = concretagem concluída</span> ·
+      <span style="color:#92400e;font-weight:500">Âmbar = concretagem em andamento ou reprogramada</span> ·
+      Cinza = concretagem não iniciada. · <strong>Δ Fim:</strong> diferença em dias entre previsão e realizado.
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var D = window.DATA || {};
+  var orcamento  = D.orcamento  || [];
+  var cronograma = D.cronograma || [];
+  var TODAY_STR  = (D.parametros && D.parametros.DataHoje) || '09/06/2026';
+  var BAC        = parseFloat((D.parametros||{}).BAC)        || 2088000;
+  var VLR_ORC    = parseFloat((D.parametros||{}).VlrUntOrc)  || 870;
+  var dataBase   = (D.parametros && D.parametros.DataBase)   || '06/2026';
+  if (typeof dataBase === 'number') {
+    var _d = new Date(Math.round((dataBase - 25569) * 86400000));
+    dataBase = String(_d.getUTCMonth() + 1).padStart(2,'0') + '/' + _d.getUTCFullYear();
+  }
+
+  var MESES_LONG  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var MESES_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function fmtBaseLong(db)  { var p=String(db).split('/'); return MESES_LONG[parseInt(p[0],10)-1]+' / '+p[1]; }
+  function fmtBaseShort(db) { var p=String(db).split('/'); return MESES_SHORT[parseInt(p[0],10)-1]+'/'+p[1]; }
+  function setEl(id,txt)    { var e=document.getElementById(id); if(e) e.textContent=txt; }
+
+  /* Computa totais da capa a partir de concretoC */
+  var ccRows = D.concretoC || [];
+  var totalQtdOrcC = Math.round(BAC / VLR_ORC);
+  var totPrev=0, totAprop=0, totValAprop=0;
+  ccRows.forEach(function(r){
+    var pct=parseFloat(r.PctExec)||0, qtdT=parseFloat(r.QtdPrevTotal)||0;
+    var qtdA=parseFloat(r.QtdAprop)||0, vuA=parseFloat(r.VlrUntAprop)||0;
+    totPrev   += Math.round(qtdT*pct/100);
+    totAprop  += qtdA;
+    totValAprop += qtdA*vuA;
+  });
+  var pctFisC = totPrev / totalQtdOrcC;
+  var EAC_C   = pctFisC > 0 ? totValAprop / pctFisC : 0;
+
+  /* Popula elementos dinâmicos da capa */
+  setEl('capaBase',   fmtBaseLong(dataBase));
+  setEl('capaBadge1', 'R$ ' + Math.round(BAC).toLocaleString('pt-BR'));
+  setEl('capaBadge2', 'R$ ' + Math.round(totValAprop).toLocaleString('pt-BR'));
+  setEl('capaBadge3', 'R$ ' + Math.round(EAC_C).toLocaleString('pt-BR'));
+  var T = window.TEXTS || {};
+  setEl('capaRodape', (T['C18'] || 'Trinus Capital · Engenharia de Custos & BI') + ' · ' + fmtBaseShort(dataBase));
+  setEl('ganttToday', 'Hoje — Base ' + fmtBaseShort(dataBase));
+
+  function fmtBRL(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); }
+  function fmtUnit(n) { return 'R$ ' + (+n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+  /* ── Tabela de orçamento ── */
+  var tblHtml = '', totalR = 0;
+  orcamento.forEach(function(r) {
+    var rTotal = parseFloat(r.RsTotal) || 0;
+    totalR += rTotal;
+    tblHtml +=
+      '<tr>' +
+      '<td class="bold">' + r.Grupo + '</td>' +
+      '<td class="c">' + r.Unidade + '</td>' +
+      '<td class="c">' + (+r.QtdOrc).toLocaleString('pt-BR') + '</td>' +
+      '<td class="c">' + fmtUnit(r.RsUnitario) + '</td>' +
+      '<td class="c">' + fmtBRL(rTotal) + '</td>' +
+      '<td class="c">' + (+r.PctTotal).toFixed(1).replace('.',',') + '%</td>' +
+      '<td class="c"><div style="height:5px;background:var(--rule2);border-radius:3px;overflow:hidden;width:90px;margin:0 auto">' +
+        '<div style="height:100%;width:' + (+r.PesoGrupo) + '%;background:var(--navy);border-radius:3px"></div>' +
+      '</div></td></tr>';
+  });
+  document.getElementById('tblA').innerHTML = tblHtml;
+  document.getElementById('tblAFoot').innerHTML =
+    '<tr><td colspan="4" data-txt="A12">TOTAL — CONCRETO USINADO</td>' +
+    '<td class="c">' + fmtBRL(totalR) + '</td>' +
+    '<td class="c">100%</td><td></td></tr>';
+
+  /* ── Gantt ── */
+  (function(){
+    var el = document.getElementById('gantt');
+    if (!el || !cronograma.length) return;
+
+    function parseBR(s){ if(!s) return null; var p=String(s).split('/'); return new Date(+p[2],+p[1]-1,+p[0]); }
+
+    /* Compute date range from cronograma */
+    var minDate = null, maxDate = null;
+    cronograma.forEach(function(r){
+      var ps = parseBR(r.PlanS); if(ps && (!minDate||ps<minDate)) minDate=ps;
+      var pe = parseBR(r.ReprogE||r.PlanE); if(pe && (!maxDate||pe>maxDate)) maxDate=pe;
+    });
+    var GANTT_START = minDate ? new Date(minDate.getFullYear(), minDate.getMonth(), 1)   : new Date(2025,9,1);
+    var GANTT_END   = maxDate ? new Date(maxDate.getFullYear(), maxDate.getMonth()+2, 1) : new Date(2027,2,1);
+    var TOTAL_MS    = GANTT_END - GANTT_START;
+    var TODAY       = parseBR(TODAY_STR);
+
+    /* Nota dinâmica do Gantt */
+    var NOMES_S=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var gS = NOMES_S[GANTT_START.getMonth()]+'/'+GANTT_START.getFullYear();
+    var gEd = maxDate ? new Date(maxDate) : new Date(GANTT_END.getFullYear(), GANTT_END.getMonth()-1, 1);
+    var gE = NOMES_S[gEd.getMonth()]+'/'+gEd.getFullYear();
+    setEl('ganttNote', gS + ' – ' + gE + ' · Base ' + fmtBaseShort(dataBase) + ' · Avanço por pavimento');
+
+    function pct(ms)    { return (ms/TOTAL_MS*100).toFixed(2)+'%'; }
+    function barL(ds)   { return pct(parseBR(ds)-GANTT_START); }
+    function barW(s,e)  { return pct(parseBR(e)-parseBR(s)); }
+    function fmtD(s)    { return s ? String(s).slice(0,6)+String(s).slice(8) : '—'; }
+
+    function effDates(p){
+      var rs=p.RealS||'', re=p.RealE||'', rps=p.ReprogS||'', rpe=p.ReprogE||'';
+      if(rs&&re)   return {s:parseBR(rs),e:parseBR(re)};
+      if(rs)       return {s:parseBR(rs),e:rpe?parseBR(rpe):TODAY};
+      if(rps&&rpe) return {s:parseBR(rps),e:parseBR(rpe)};
+      return {s:parseBR(p.PlanS),e:parseBR(p.PlanE)};
+    }
+
+    /* Generate month list */
+    var NOMES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var ganttMeses=[], cur=new Date(GANTT_START), idx=1;
+    while(cur<GANTT_END){
+      ganttMeses.push({label:NOMES[cur.getMonth()],ano:cur.getFullYear(),idx:idx++,date:new Date(cur)});
+      cur.setMonth(cur.getMonth()+1);
+    }
+
+    /* Year bands */
+    var yearBands=[];
+    for(var y=GANTT_START.getFullYear(); y<=GANTT_END.getFullYear(); y++){
+      var ys=new Date(y,0,1); if(ys<GANTT_START) ys=GANTT_START;
+      var ye=new Date(y+1,0,1); if(ye>GANTT_END) ye=GANTT_END;
+      if(ys>=GANTT_END) break;
+      yearBands.push({label:String(y),s:ys,e:ye});
+    }
+
+    var counts = ganttMeses.map(function(m,i){
+      var mS=m.date, mE=i<ganttMeses.length-1?ganttMeses[i+1].date:GANTT_END;
+      return cronograma.filter(function(p){var d=effDates(p);return d.s<mE&&d.e>mS;}).length;
+    });
+    var todayL = pct(TODAY-GANTT_START);
+
+    var dividers='';
+    ganttMeses.forEach(function(m,i){
+      if(i===0) return;
+      var isYr=m.ano!==ganttMeses[i-1].ano;
+      dividers+='<div class="'+(isYr?'gt-div-y':'gt-div-m')+'" style="left:'+pct(m.date-GANTT_START)+'"></div>';
+    });
+    dividers+='<div class="gt-div-today" style="left:'+todayL+'"></div>';
+
+    var h='<div class="gt-table">';
+    h+='<div class="gt-row"><div class="gt-info-blank"></div><div class="gt-bars-area gt-yr-wrap">';
+    yearBands.forEach(function(yb){ h+='<div class="gt-yr" style="flex:0 0 '+pct(yb.e-yb.s)+'">'+yb.label+'</div>'; });
+    h+='</div></div>';
+    h+='<div class="gt-row"><div class="gt-info-cols">';
+    ['Local','Peso','Ini.Plan','Fim.Plan','Ini.Atual','Fim.Atual','Δ Fim'].forEach(function(t){ h+='<div class="gt-th">'+t+'</div>'; });
+    h+='</div><div class="gt-bars-area gt-mths-wrap">';
+    ganttMeses.forEach(function(m,i){
+      var nxtD=i<ganttMeses.length-1?ganttMeses[i+1].date:GANTT_END;
+      h+='<div class="gt-mth" style="flex:0 0 '+pct(nxtD-m.date)+'">'+
+         '<span class="gt-mth-n">'+m.label+'</span>'+
+         '<span class="gt-mth-c'+(counts[i]?' on':'')+'">' +counts[i]+'</span></div>';
+    });
+    h+='<div class="gt-div-today" style="left:'+todayL+'"></div></div></div>';
+
+    function dCell(val,cls){ return '<div class="gt-td '+(val?cls:'nil')+'">'+fmtD(val)+'</div>'; }
+
+    cronograma.forEach(function(p,i){
+      var ev=i%2?' ev':'';
+      var ps=p.PlanS||'', pe=p.PlanE||'', rs=p.RealS||'', re=p.RealE||'', rps=p.ReprogS||'', rpe=p.ReprogE||'';
+      var peso=parseFloat(p.Peso)||0;
+      var planBar='<div class="gt-bar plan" style="left:'+barL(ps)+';width:'+barW(ps,pe)+'"></div>';
+      var t2='';
+      if(rs&&re){
+        t2='<div class="gt-bar real" style="left:'+barL(rs)+';width:'+barW(rs,re)+'"></div>';
+      } else if(rs){
+        t2='<div class="gt-bar real" style="left:'+barL(rs)+';width:'+barW(rs,TODAY_STR)+'"></div>';
+        if(rpe) t2+='<div class="gt-bar tend" style="left:'+barL(TODAY_STR)+';width:'+barW(TODAY_STR,rpe)+'"></div>';
+      } else if(rps&&rpe){
+        t2='<div class="gt-bar reprog" style="left:'+barL(rps)+';width:'+barW(rps,rpe)+'"></div>';
+      }
+      var sAtual=rs||rps||null, sCls=rs?'rh':(rps?'rrh':'');
+      var eAtual=re||rpe||null, eCls=re?'rh':(rpe?'rrh':'');
+      var deltaCell='<div class="gt-td nil">—</div>';
+      if(eAtual&&pe){
+        var diff=Math.round((parseBR(eAtual)-parseBR(pe))/864e5);
+        deltaCell='<div class="gt-td '+(diff>0?'rrh':'rh')+'" style="font-weight:600">'+(diff>0?'+':'')+diff+'d</div>';
+      }
+      h+='<div class="gt-row gt-dr'+ev+'">'+
+         '<div class="gt-info-cols">'+
+         '<div class="gt-td bld">'+p.Pavimento+'</div>'+
+         '<div class="gt-td">'+peso.toFixed(1).replace('.',',')+'%</div>'+
+         dCell(ps,'') + dCell(pe,'') + dCell(sAtual,sCls) + dCell(eAtual,eCls) + deltaCell +
+         '</div>'+
+         '<div class="gt-bars-area gt-bar-cell">'+dividers+planBar+t2+'</div>'+
+         '</div>';
+    });
+    h+='</div>';
+    el.innerHTML=h;
+  })();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apropriações · Portal de Auditoria de Concreto</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 13px; min-height: 100vh; }
+
+    .topbar {
+      background: #0d1f35; height: 52px; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1b2d4a;
+    }
+    .topbar-left   { display: flex; align-items: center; gap: 10px; }
+    .topbar-divider{ width: 1px; height: 18px; background: #243659; }
+    .topbar-label  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #a78bfa; }
+    .topbar-title  { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .topbar-right  { display: flex; gap: 6px; align-items: center; }
+    .topbar-status { font-size: 10px; color: #4a6080; margin-right: 6px; display: flex; align-items: center; gap: 5px; }
+    .tdot { width: 6px; height: 6px; border-radius: 50%; background: #4a6080; transition: background .3s; flex-shrink: 0; }
+    .tdot.ok      { background: #22c55e; }
+    .tdot.saving  { background: #f59e0b; animation: blink 1s infinite; }
+    .tdot.loading { background: #f59e0b; animation: blink 1s infinite; }
+    .tdot.err     { background: #ef4444; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 14px; border-radius: 5px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      border: none; font-family: inherit; transition: background .12s;
+      white-space: nowrap; text-decoration: none;
+    }
+    .btn svg { flex-shrink: 0; }
+    .btn-primary { background: #277EBD; color: #fff; }
+    .btn-primary:hover { background: #1d6ca6; }
+    .btn-export  { background: #0f766e; color: #fff; }
+    .btn-export:hover { background: #0d6460; }
+
+    .indicators {
+      background: #1b2a4a; border-bottom: 2px solid #7c3aed;
+      padding: 0 28px; display: flex; align-items: stretch;
+    }
+    .ind { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 14px 24px; border-right: 1px solid #243659; }
+    .ind:first-child { padding-left: 0; }
+    .ind:last-child  { border-right: none; }
+    .ind-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #4a6080; }
+    .ind-val { font-size: 20px; font-weight: 700; color: #f1f5f9; font-variant-numeric: tabular-nums; line-height: 1; }
+    .ind-val.accent { color: #c4b5fd; }
+    .ind-val.muted  { color: #94a3b8; font-size: 16px; font-weight: 600; }
+
+    .content { padding: 20px 28px 32px; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+    .card-bar { background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .card-bar-title{ font-size: 11px; font-weight: 700; color: #1b2a4a; text-transform: uppercase; letter-spacing: .5px; }
+    .card-bar-hint { font-size: 10px; color: #94a3b8; }
+
+    .btn-add {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 30px; padding: 0 14px; border-radius: 5px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      background: #7c3aed; color: #fff; border: none; font-family: inherit; transition: background .12s;
+    }
+    .btn-add:hover { background: #6d28d9; }
+
+    .tbl { width: 100%; border-collapse: collapse; }
+    .tbl thead th {
+      background: #f8fafc; color: #64748b;
+      font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+      padding: 8px 12px; text-align: left; border-bottom: 2px solid #e2e8f0;
+    }
+    .tbl thead th.r { text-align: right; }
+    .tbl thead th.c { text-align: center; }
+    .tbl tbody tr { border-bottom: 1px solid #f1f5f9; }
+    .tbl tbody tr:last-child { border-bottom: none; }
+    .tbl tbody tr:hover { background: #faf5ff; }
+    .tbl tbody tr.is-new { background: #faf5ff; animation: rowIn .2s ease; }
+    @keyframes rowIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
+    .tbl tbody td { padding: 3px 8px; vertical-align: middle; }
+    .tbl tfoot td { background: #f8fafc; padding: 10px 12px; font-size: 12px; font-weight: 700; color: #1b2a4a; border-top: 2px solid #e2e8f0; }
+    .tbl tfoot td.r { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .tbl input[type="text"] {
+      width: 100%; height: 30px; padding: 0 8px;
+      border: 1px solid transparent; border-radius: 4px;
+      font-family: inherit; font-size: 12px; color: #1e293b;
+      background: transparent; outline: none; transition: border-color .1s, background .1s;
+    }
+    .tbl input[type="text"]:hover { border-color: #e2e8f0; background: #fff; }
+    .tbl input[type="text"]:focus { border-color: #7c3aed; background: #fff; box-shadow: 0 0 0 3px rgba(124,58,237,.08); }
+    .tbl input.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+
+    .cel-calc { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; padding-right: 14px !important; color: #1e293b; }
+    .cel-num  { text-align: center; font-size: 10px; color: #94a3b8; }
+
+    .btn-del {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 4px;
+      border: none; background: transparent; cursor: pointer; color: #cbd5e1; transition: background .12s, color .12s;
+    }
+    .btn-del:hover { background: #fef2f2; color: #ef4444; }
+
+    .empty { padding: 60px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .empty-title { font-size: 13px; font-weight: 600; color: #475569; }
+    .empty-sub   { font-size: 11px; color: #94a3b8; }
+
+    .notif {
+      position: fixed; bottom: 24px; right: 20px;
+      background: #1e293b; color: #f1f5f9; padding: 8px 14px;
+      border-radius: 5px; font-size: 11px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+      border-left: 3px solid #7c3aed;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      opacity: 0; transform: translateY(6px);
+      transition: opacity .18s, transform .18s; pointer-events: none; z-index: 500;
+    }
+    .notif.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="notif" id="notif">
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M13 4L6.5 11 3 7.5" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <span id="notifMsg"></span>
+</div>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-label">Auditoria · Concreto</span>
+    <div class="topbar-divider"></div>
+    <span class="topbar-title">Apropriações</span>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-status"><div class="tdot loading" id="statusDot"></div><span id="statusText">Carregando...</span></div>
+    <button class="btn btn-export" onclick="exportXLSX()">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Exportar XLSX
+    </button>
+    <a href="home.html" class="btn btn-primary">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Início
+    </a>
+  </div>
+</div>
+
+<div class="indicators">
+  <div class="ind"><div class="ind-lbl">Total Apropriado</div><div class="ind-val accent" id="indTotal">R$ 0</div></div>
+  <div class="ind"><div class="ind-lbl">Volume Apropriado</div><div class="ind-val" id="indM3">0 m³</div></div>
+  <div class="ind"><div class="ind-lbl">Custo Unitário Médio</div><div class="ind-val muted" id="indVU">—</div></div>
+  <div class="ind"><div class="ind-lbl">Notas Fiscais</div><div class="ind-val muted" id="indItens">0</div></div>
+</div>
+
+<div class="content">
+  <div class="card">
+    <div class="card-bar">
+      <div>
+        <div class="card-bar-title">Registro de Apropriações</div>
+        <div class="card-bar-hint">Clique em qualquer campo para editar · salvamento automático</div>
+      </div>
+      <button class="btn-add" onclick="addBlank()">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Nova apropriação
+      </button>
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:34px" class="c">#</th>
+          <th style="width:100px">Data NF</th>
+          <th style="width:110px">Nº NF</th>
+          <th style="min-width:130px">Fornecedor</th>
+          <th>Descrição / FCK</th>
+          <th style="width:110px" class="r">Volume (m³)</th>
+          <th style="width:110px" class="r">R$ / m³</th>
+          <th style="width:120px" class="r">R$ Total</th>
+          <th style="width:36px"></th>
+        </tr>
+      </thead>
+      <tbody id="aprBody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" style="color:#94a3b8;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase">Total geral</td>
+          <td class="r" id="footM3" style="color:#64748b;font-size:11px;font-weight:600">—</td>
+          <td></td>
+          <td class="r" id="footTotal">R$ 0</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<script>
+  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
+  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
+  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+  var OBRA_ID = null;
+  var lines = [];
+  var saveTimers = {};
+
+  function fmtNum(n) {
+    if (!n || isNaN(+n)) return '';
+    var num = +n, dec = num%1===0 ? 0 : 2;
+    return num.toLocaleString('pt-BR', { minimumFractionDigits:dec, maximumFractionDigits:dec });
+  }
+  function parseNum(s) { return parseFloat(String(s||'').replace(/\./g,'').replace(',','.')) || 0; }
+  function fmtBRL(n)   { return n ? 'R$ ' + Math.round(+n).toLocaleString('pt-BR') : 'R$ 0'; }
+  function esc(s)      { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function init() {
+    setStatus('loading', 'Carregando...');
+    try {
+      var { data: obra, error: e0 } = await db.from('obras').select('id').limit(1).single();
+      if (e0) throw e0;
+      OBRA_ID = obra.id;
+
+      var { data: rows, error: e1 } = await db.from('apropriacao')
+        .select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true });
+      if (e1) throw e1;
+
+      lines = (rows||[]).map(function(r) {
+        return {
+          id: r.id,
+          data:       r.data_nf||'',
+          nf:         r.numero_nf||'',
+          fornecedor: r.fornecedor||'',
+          descricao:  r.descricao||'',
+          volume:     +r.volume||0,
+          vu:         +r.rs_unitario||0
+        };
+      });
+      setStatus('ok', 'Conectado');
+      render();
+    } catch(e) {
+      setStatus('err', 'Erro: ' + e.message);
+    }
+  }
+
+  function render(focusId) {
+    var body = document.getElementById('aprBody');
+    if (!lines.length) {
+      body.innerHTML =
+        '<tr><td colspan="9"><div class="empty">' +
+        '<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2z" stroke="#cbd5e1" stroke-width="1.5"/><path d="M9 8h6M9 12h6M9 16h3" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+        '<div class="empty-title">Nenhuma apropriação registrada</div>' +
+        '<div class="empty-sub">Clique em "Nova apropriação" para começar</div>' +
+        '</div></td></tr>';
+      updateTotals(); return;
+    }
+
+    var html = '';
+    lines.forEach(function(l, i) {
+      var rs = l.volume * l.vu;
+      html +=
+        '<tr data-id="'+l.id+'"'+(l.id===focusId?' class="is-new"':'')+'>'+
+        '<td class="cel-num" style="width:34px">'+(i+1)+'</td>'+
+        '<td style="width:100px"><input type="text" value="'+esc(l.data)+'" placeholder="DD/MM/AAAA"'+
+          ' onchange="scheduleUpdate(\''+l.id+'\',\'data\',this.value)"></td>'+
+        '<td style="width:110px"><input type="text" value="'+esc(l.nf)+'" placeholder="000000"'+
+          ' onchange="scheduleUpdate(\''+l.id+'\',\'nf\',this.value)"></td>'+
+        '<td><input type="text" value="'+esc(l.fornecedor)+'" placeholder="Concreteira / Fornecedor"'+
+          ' onchange="scheduleUpdate(\''+l.id+'\',\'fornecedor\',this.value)"></td>'+
+        '<td><input type="text" value="'+esc(l.descricao)+'" placeholder="Ex: Concreto FCK 25 MPa bombeado"'+
+          ' onchange="scheduleUpdate(\''+l.id+'\',\'descricao\',this.value)"></td>'+
+        '<td style="width:110px"><input type="text" class="num" value="'+esc(fmtNum(l.volume))+'" placeholder="0"'+
+          ' onfocus="this.value=\''+(l.volume||'')+'\';this.select()"'+
+          ' onblur="var v=parseNum(this.value);scheduleUpdate(\''+l.id+'\',\'volume\',v);this.value=fmtNum(v)"'+
+          ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}"></td>'+
+        '<td style="width:110px"><input type="text" class="num" value="'+esc(fmtNum(l.vu))+'" placeholder="0,00"'+
+          ' onfocus="this.value=\''+(l.vu||'')+'\';this.select()"'+
+          ' onblur="var v=parseNum(this.value);scheduleUpdate(\''+l.id+'\',\'vu\',v);this.value=fmtNum(v)"'+
+          ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}"></td>'+
+        '<td class="cel-calc" style="width:120px" id="tot_'+l.id+'">'+fmtBRL(rs)+'</td>'+
+        '<td style="width:36px;text-align:center"><button class="btn-del" onclick="deleteLine(\''+l.id+'\')" title="Remover">'+
+          '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'+
+          '</button></td>'+
+        '</tr>';
+    });
+    body.innerHTML = html;
+    updateTotals();
+    if (focusId) {
+      var row = body.querySelector('tr[data-id="'+focusId+'"]');
+      if (row) { row.scrollIntoView({behavior:'smooth',block:'center'}); var inp=row.querySelector('input[type="text"]'); if(inp) inp.focus(); }
+    }
+  }
+
+  function recalcRow(id) {
+    var l = lines.find(function(x){return x.id===id;}); if (!l) return;
+    var el = document.getElementById('tot_'+id);
+    if (el) el.textContent = fmtBRL(l.volume*l.vu);
+    updateTotals();
+  }
+
+  function updateTotals() {
+    var totVal = lines.reduce(function(s,l){return s+l.volume*l.vu;},0);
+    var totM3  = lines.reduce(function(s,l){return s+l.volume;},0);
+    var vuMed  = totM3>0 ? totVal/totM3 : 0;
+    document.getElementById('indTotal').textContent  = fmtBRL(totVal);
+    document.getElementById('indM3').textContent     = fmtNum(totM3)+' m³';
+    document.getElementById('indVU').textContent     = vuMed>0 ? fmtBRL(vuMed)+'/m³' : '—';
+    document.getElementById('indItens').textContent  = lines.length;
+    document.getElementById('footM3').textContent    = totM3>0 ? fmtNum(totM3)+' m³' : '—';
+    document.getElementById('footTotal').textContent = fmtBRL(totVal);
+  }
+
+  function scheduleUpdate(id, field, value) {
+    var l = lines.find(function(x){return x.id===id;}); if (!l) return;
+    l[field] = (field==='volume'||field==='vu') ? (+value||0) : value;
+    recalcRow(id);
+
+    clearTimeout(saveTimers[id]);
+    setStatus('saving', 'Salvando...');
+    saveTimers[id] = setTimeout(async function() {
+      var row = lines.find(function(x){return x.id===id;}); if (!row) return;
+      var { error } = await db.from('apropriacao').update({
+        data_nf:    row.data||'',
+        numero_nf:  row.nf||'',
+        fornecedor: row.fornecedor||'',
+        descricao:  row.descricao||'',
+        volume:     row.volume||0,
+        rs_unitario:row.vu||0,
+        updated_at: new Date().toISOString()
+      }).eq('id', id);
+      setStatus(error?'err':'ok', error?'Erro ao salvar':'Salvo');
+    }, 700);
+  }
+
+  async function addBlank() {
+    if (!OBRA_ID) { notify('Aguarde a conexão...'); return; }
+    setStatus('saving', 'Salvando...');
+    var { data, error } = await db.from('apropriacao').insert({
+      obra_id: OBRA_ID, data_nf:'', numero_nf:'', fornecedor:'', descricao:'', volume:0, rs_unitario:0
+    }).select().single();
+    if (error) { setStatus('err', 'Erro ao criar'); return; }
+    lines.push({ id:data.id, data:'', nf:'', fornecedor:'', descricao:'', volume:0, vu:0 });
+    render(data.id);
+    setStatus('ok', 'Salvo');
+  }
+
+  async function deleteLine(id) {
+    if (!confirm('Remover esta apropriação?')) return;
+    var { error } = await db.from('apropriacao').delete().eq('id', id);
+    if (error) { notify('Erro ao remover'); return; }
+    lines = lines.filter(function(l){return l.id!==id;});
+    render();
+    notify('Registro removido');
+  }
+
+  function exportXLSX() {
+    var data = [['DataNF','NumeroNF','Fornecedor','Descricao','Volume_m3','RsUnitario','RsTotal']];
+    lines.forEach(function(l) {
+      data.push([l.data||'', l.nf||'', l.fornecedor||'', l.descricao||'', l.volume||0, l.vu||0, Math.round(l.volume*l.vu)]);
+    });
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Apropriacao');
+    XLSX.writeFile(wb, 'apropriacao.xlsx');
+    notify('apropriacao.xlsx exportado');
+  }
+
+  function setStatus(type, msg) {
+    document.getElementById('statusDot').className   = 'tdot ' + type;
+    document.getElementById('statusText').textContent = msg;
+  }
+  function notify(msg) {
+    var el = document.getElementById('notif');
+    document.getElementById('notifMsg').textContent = msg;
+    el.classList.add('show');
+    setTimeout(function(){el.classList.remove('show');}, 2600);
+  }
+
+  init();
+</script>
+</body>
+</html>

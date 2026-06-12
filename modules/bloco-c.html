@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloco C — Concreto Usinado</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="../css/main.css" rel="stylesheet">
+  <style>
+    body { padding: 18px 22px; }
+
+    /* KPI strip — 5 cards */
+    .kc-strip        { display:flex; gap:8px; margin-bottom:12px; }
+    .kc-card         { flex:1; background:#fff; border:1px solid var(--rule2); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; }
+    .kc-lbl          { font-size:9px; color:var(--sub); text-transform:uppercase; letter-spacing:.7px; font-weight:600; margin-bottom:8px; }
+    .kc-main         { font-size:16px; font-weight:700; color:var(--navy); line-height:1; margin-bottom:8px; }
+    .kc-main.green   { color:var(--green); }
+    .kc-main.amber   { color:var(--amber); }
+    .kc-main.red     { color:var(--red); }
+    .kc-row          { display:flex; gap:12px; border-top:1px solid var(--rule2); padding-top:8px; margin-top:auto; }
+    .kc-item         { flex:1; }
+    .kc-item-lbl     { font-size:9px; color:var(--sub); margin-bottom:2px; }
+    .kc-item-val     { font-size:11px; font-weight:700; color:var(--navy); }
+    .kc-item-val.red   { color:var(--red); }
+    .kc-item-val.amber { color:var(--amber); }
+    .kc-item-val.green { color:var(--green); }
+
+    /* Badges */
+    .bdg   { display:inline-block; padding:1px 6px; border-radius:3px; font-size:9px; font-weight:700; white-space:nowrap; line-height:1.5; }
+    .bdg-g { background:var(--green); color:#fff; }
+    .bdg-a { background:var(--amber); color:#fff; }
+    .bdg-r { background:var(--red);   color:#fff; }
+
+    /* Tabela */
+    .tbl               { table-layout: auto; width: 100%; }
+    .tbl thead tr      { background: var(--navy); border-bottom: none; }
+    .tbl thead th      { color: #fff; font-size: 10px; letter-spacing: .2px; padding: 5px 7px; white-space: nowrap; }
+    .tbl tbody td      { padding: 2px 6px; font-variant-numeric: tabular-nums; font-size: 10px; white-space: nowrap; text-align: center !important; }
+    .tbl tfoot td      { padding: 4px 6px; font-size: 10px; white-space: nowrap; text-align: center !important; }
+    .tbl tbody tr:nth-child(even) td { background: var(--light); }
+
+    /* Cabeçalho duplo agrupado */
+    .tbl thead .grp-hdr-row th { padding: 5px 8px; vertical-align: middle; }
+    .grp-hdr {
+      text-align: center !important;
+      font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px;
+      border: 1px solid rgba(255,255,255,.18) !important;
+      border-bottom: 2px solid rgba(255,255,255,.22) !important;
+    }
+    .grp-medicao { background: #0e3d5e !important; }
+    .grp-apropr  { background: #2a3138 !important; }
+    .grp-analise { background: #0a2a40 !important; }
+    .grp-tend    { background: #18242c !important; }
+    .tbl thead .sub-hdr-row th { font-size: 9px; padding: 3px 7px; white-space: nowrap; text-align: center !important; border-bottom: 2px solid rgba(255,255,255,.2) !important; border-left: 1px solid rgba(255,255,255,.12) !important; }
+    .sub-medicao { background: #124e78 !important; }
+    .sub-apropr  { background: #363e46 !important; }
+    .sub-analise { background: #0f3858 !important; }
+    .sub-tend    { background: #223038 !important; }
+    .pav-col { vertical-align: middle !important; text-align: left !important; white-space: nowrap; }
+    th.grp-end { border-right: 2px solid rgba(255,255,255,.25) !important; }
+    td.grp-end { border-right: 2px solid var(--rule) !important; }
+    .pct-done { color: var(--green); font-weight: 700; }
+    .pct-part { color: var(--amber); font-weight: 700; }
+    .tend-final { font-size: 9px; color: var(--sub); font-weight: 400; }
+    th.grp-tend-start, td.grp-tend-start { border-left: 3px solid rgba(255,255,255,.2) !important; }
+    td.grp-tend-start { border-left: 3px solid var(--rule) !important; }
+
+    /* Linhas não iniciadas */
+    .row-ni td { color: var(--text); }
+
+    /* Desvio colorido */
+    .red   { color: var(--red);   font-weight: 700; }
+    .amber { color: var(--amber); font-weight: 700; }
+    .green { color: var(--green); font-weight: 700; }
+
+    /* Botão info + painel memorial */
+    .info-btn-wrap  { display:flex; justify-content:flex-end; margin-bottom:6px; }
+    .info-btn {
+      font-size:10px; font-weight:600; color:var(--sub);
+      background:#fff; border:1px solid var(--rule); border-radius:4px;
+      padding:4px 10px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;
+      font-family:var(--f); letter-spacing:.3px; transition:all .15s;
+    }
+    .info-btn:hover { color:var(--navy); border-color:var(--navy); }
+    .info-panel {
+      display:none; background:#fff; border:1px solid var(--rule);
+      border-radius:6px; padding:14px 18px; margin-bottom:12px;
+      box-shadow:0 4px 12px rgba(0,0,0,.08);
+    }
+    .info-panel.open { display:block; }
+    .info-panel-title { font-size:10px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.8px; color:var(--navy); margin-bottom:10px; }
+    .info-row { display:flex; gap:14px; padding:7px 0; border-bottom:1px solid var(--rule2); align-items:baseline; }
+    .info-row:last-child { border-bottom:none; padding-bottom:0; }
+    .info-row-lbl  { font-size:10px; font-weight:700; color:var(--navy); min-width:170px; flex-shrink:0; }
+    .info-row-calc { font-size:11px; color:var(--sub); line-height:1.6; }
+    .info-row-calc strong { color:var(--text); font-weight:600; }
+
+    /* Barra inline de índice de perda */
+    .idx-wrap { display: flex; align-items: center; gap: 6px; }
+    .idx-bar  { width: 40px; height: 5px; background: var(--rule2); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+    .idx-fill { height: 100%; border-radius: 3px; }
+    .idx-fill.red   { background: var(--red); }
+    .idx-fill.amber { background: var(--amber); }
+    .idx-fill.green { background: var(--green); }
+  </style>
+</head>
+<body>
+
+<div class="blk">
+  <div class="blk-head">
+    <span class="blk-num">C</span>
+    <span class="blk-title" data-txt="CB01">Medição Atual Financeira — Concreto Usinado</span>
+    <span class="blk-sub" data-txt="CB02">Perda por pavimento · Vlr. Unt. Orçado R$ 870/m³ · BE Bonifácio · Base Jun/2026</span>
+  </div>
+
+  <!-- Botão memorial de cálculo -->
+  <div class="info-btn-wrap">
+    <button class="info-btn" data-txt="CB03" onclick="document.getElementById('infoPanel').classList.toggle('open')">
+      ℹ Memorial de Cálculo
+    </button>
+  </div>
+
+  <div class="info-panel" id="infoPanel">
+    <div class="info-panel-title" data-txt="CB04">Memorial de Cálculo — KPI Cards</div>
+    <div class="info-row">
+      <div class="info-row-lbl" data-txt="CB05">Total Orçado</div>
+      <div class="info-row-calc" id="mem01"></div>
+    </div>
+    <div class="info-row">
+      <div class="info-row-lbl" data-txt="CB07">Total Medido Físico</div>
+      <div class="info-row-calc" id="mem02"></div>
+    </div>
+    <div class="info-row">
+      <div class="info-row-lbl" data-txt="CB09">Total Apropriado</div>
+      <div class="info-row-calc" id="mem03"></div>
+    </div>
+    <div class="info-row">
+      <div class="info-row-lbl" data-txt="CB11">Índices de Desvio</div>
+      <div class="info-row-calc" id="mem04"></div>
+    </div>
+    <div class="info-row">
+      <div class="info-row-lbl" data-txt="CB13">Tendência de Custos</div>
+      <div class="info-row-calc" id="mem05"></div>
+    </div>
+  </div>
+
+  <!-- KPI strip — JS populated -->
+  <div class="kc-strip" id="kcStrip"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title" data-txt="CB30">Análise de Concreto por Pavimento</span>
+      <span class="card-head-note" id="cCardNote"></span>
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr class="grp-hdr-row">
+          <th rowspan="2" class="pav-col">Pavimento</th>
+          <th colspan="4" class="grp-hdr grp-medicao" data-txt="CB32">Medição Física</th>
+          <th colspan="3" class="grp-hdr grp-apropr" data-txt="CB33">Apropriado</th>
+          <th colspan="4" class="grp-hdr grp-analise" data-txt="CB34">Análise de Desvio</th>
+          <th colspan="3" class="grp-hdr grp-tend" data-txt="CB35">Tendência</th>
+        </tr>
+        <tr class="sub-hdr-row">
+          <th class="r sub-medicao" data-txt="CB36">% Exec.</th>
+          <th class="r sub-medicao" data-txt="CB37">Qtd Prev.</th>
+          <th class="r sub-medicao" data-txt="CB38">Vlr. Unt.</th>
+          <th class="r sub-medicao grp-end" data-txt="CB39">Valor</th>
+          <th class="r sub-apropr" data-txt="CB40">Qtd</th>
+          <th class="r sub-apropr" data-txt="CB41">Vlr. Unt.</th>
+          <th class="r sub-apropr grp-end" data-txt="CB42">Valor</th>
+          <th class="r sub-analise" data-txt="CB43">Δ Qtd %</th>
+          <th class="r sub-analise" data-txt="CB44">Δ Vlr. Unt. %</th>
+          <th class="r sub-analise" data-txt="CB45">Δ R$</th>
+          <th class="r sub-analise grp-end" data-txt="CB46">Δ %</th>
+          <th class="r sub-tend grp-tend-start" data-txt="CB47">Vlr. Unt.</th>
+          <th class="r sub-tend" data-txt="CB48">Qtd Tend.</th>
+          <th class="r sub-tend" data-txt="CB49">Valor</th>
+        </tr>
+      </thead>
+      <tbody id="tblCBody"></tbody>
+      <tfoot id="tblCFoot"></tfoot>
+    </table>
+    <div class="tbl-note" data-txt="CB51">
+      Vlr. Unt. Orçado referência: R$ 870/m³ · Qtd Prevista = memória de cálculo estrutural proporcional ao % executado ·
+      Desvio = (Apropriado − Previsto) ÷ Previsto · Torre e Coroamento: quantitativos estimados, sem apropriação
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var D        = window.DATA || {};
+  var rows     = D.concretoC  || [];
+  var params   = D.parametros || {};
+  var BAC      = parseFloat(params.BAC)      || 2088000;
+  var VLR_ORC  = parseFloat(params.VlrUntOrc) || 870;
+  var T        = window.TEXTS || {};
+
+  function fmtBRL(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); }
+  function fmtPct(n, dec) { dec = dec === undefined ? 1 : dec; return n.toFixed(dec).replace('.',',') + '%'; }
+  function sgn(n, decimals) {
+    var s = Math.abs(n).toFixed(decimals === undefined ? 1 : decimals).replace('.',',');
+    return (n >= 0 ? '+' : '-') + s + '%';
+  }
+  function sgnR(n) { return (n >= 0 ? '+' : '') + fmtBRL(n); }
+
+  /* ── Compute totals ── */
+  var totalQtdOrc = Math.round(BAC / VLR_ORC);
+  var totalQtdPrev = 0, totalQtdAprop = 0, totalValAprop = 0, totalQtdTend = 0, totalValTend = 0;
+
+  rows.forEach(function(r) {
+    var pct   = parseFloat(r.PctExec) || 0;
+    var qtdT  = parseFloat(r.QtdPrevTotal) || 0;
+    var qtdA  = parseFloat(r.QtdAprop) || 0;
+    var vuA   = parseFloat(r.VlrUntAprop) || 0;
+    var vuTend= parseFloat(r.VlrUntTend) || 0;
+    var qtdTend = parseFloat(r.QtdTend) || 0;
+
+    totalQtdPrev  += Math.round(qtdT * pct / 100);
+    totalQtdAprop += qtdA;
+    totalValAprop += qtdA * vuA;
+    totalQtdTend  += qtdTend;
+    totalValTend  += vuTend * qtdTend;
+  });
+
+  var totalValMedicao = totalQtdPrev * VLR_ORC;
+  var pctFisico       = totalQtdPrev / totalQtdOrc;             // fraction
+  var vlrUntReal      = totalQtdAprop > 0 ? totalValAprop / totalQtdAprop : 0;
+  var EAC             = pctFisico > 0 ? totalValAprop / pctFisico : 0;
+  var desvioTotal     = totalValMedicao > 0 ? (totalValAprop - totalValMedicao) / totalValMedicao : 0;
+  var perdaQtd        = totalQtdPrev > 0 ? (totalQtdAprop - totalQtdPrev) / totalQtdPrev : 0;
+  var desvVlrUnt      = VLR_ORC > 0 ? (vlrUntReal - VLR_ORC) / VLR_ORC : 0;
+
+  /* ── KPI Cards ── */
+  var kpis = [
+    { lbl:'CB15', main: fmtBRL(BAC), mainCls:'',
+      s1lbl:'CB16', s1:'',
+      s2lbl:'CB17', s2:'' },
+    { lbl:'CB18', main: fmtPct(pctFisico*100), mainCls: pctFisico < 0.3 ? 'amber' : 'green',
+      s1lbl:'CB19', s1:'',
+      s2lbl:'CB20', s2:'' },
+    { lbl:'CB21', main: fmtBRL(totalValAprop), mainCls:'amber',
+      s1lbl:'CB22', s1:'',
+      s2lbl:'CB23', s2:'' },
+    { lbl:'CB24', main: sgn(desvioTotal*100), mainCls: desvioTotal > 0 ? 'red' : 'green',
+      s1lbl:'CB25', s1:'',
+      s2lbl:'CB26', s2:'' },
+    { lbl:'CB27', main: fmtBRL(EAC), mainCls: EAC > BAC ? 'red' : 'green',
+      s1lbl:'CB28', s1:'',
+      s2lbl:'CB29', s2:'' }
+  ];
+
+  /* Sub-values per card */
+  kpis[0].s1 = totalQtdOrc.toLocaleString('pt-BR') + ' m³';
+  kpis[0].s2 = 'R$ ' + VLR_ORC.toLocaleString('pt-BR') + '/m³';
+  kpis[1].s1 = totalQtdPrev.toLocaleString('pt-BR') + ' m³';
+  kpis[1].s2 = fmtBRL(totalValMedicao);
+  kpis[2].s1 = totalQtdAprop.toLocaleString('pt-BR') + ' m³';
+  kpis[2].s2 = fmtPct(totalValAprop / BAC * 100);
+  kpis[3].s1 = sgn(perdaQtd*100);
+  kpis[3].s2 = sgn(desvVlrUnt*100);
+  kpis[4].s1 = 'R$ ' + Math.round(vlrUntReal).toLocaleString('pt-BR') + '/m³';
+  kpis[4].s2 = sgnR(EAC - BAC);
+
+  var kcHtml = '';
+  kpis.forEach(function(k) {
+    kcHtml +=
+      '<div class="kc-card">' +
+        '<div class="kc-lbl" data-txt="' + k.lbl + '">' + k.lbl + '</div>' +
+        '<div class="kc-main ' + k.mainCls + '">' + k.main + '</div>' +
+        '<div class="kc-row">' +
+          '<div class="kc-item"><div class="kc-item-lbl" data-txt="' + k.s1lbl + '">' + k.s1lbl + '</div>' +
+            '<div class="kc-item-val">' + k.s1 + '</div></div>' +
+          '<div class="kc-item"><div class="kc-item-lbl" data-txt="' + k.s2lbl + '">' + k.s2lbl + '</div>' +
+            '<div class="kc-item-val">' + k.s2 + '</div></div>' +
+        '</div>' +
+      '</div>';
+  });
+  document.getElementById('kcStrip').innerHTML = kcHtml;
+
+  /* ── Table body rows ── */
+  var bodyHtml = '';
+  rows.forEach(function(r) {
+    var pct     = parseFloat(r.PctExec) || 0;
+    var qtdT    = parseFloat(r.QtdPrevTotal) || 0;
+    var qtdPrev = Math.round(qtdT * pct / 100);
+    var qtdA    = parseFloat(r.QtdAprop) || 0;
+    var vuA     = parseFloat(r.VlrUntAprop) || 0;
+    var vuTend  = parseFloat(r.VlrUntTend) || 0;
+    var qtdTend = parseFloat(r.QtdTend) || 0;
+
+    var hasAprop = qtdA > 0;
+    var isDone   = pct >= 100;
+    var isPart   = pct > 0 && pct < 100;
+    var isNI     = pct === 0;
+
+    var valMed  = qtdPrev * VLR_ORC;
+    var valAprop= qtdA * vuA;
+    var valTend = vuTend * qtdTend;
+    var dQtd    = qtdPrev > 0 ? (qtdA - qtdPrev) / qtdPrev : 0;
+    var dVU     = (vuA - VLR_ORC) / VLR_ORC;
+    var dR      = valAprop - valMed;
+    var dPct    = valMed > 0 ? dR / valMed : 0;
+
+    var bdgCls  = isDone ? 'bdg-g' : (isPart ? 'bdg-a' : '');
+    var pctCell = isNI ? '' :
+      '<span class="bdg ' + bdgCls + '">' + Math.round(pct) + '%</span>';
+
+    /* Qtd Prev display: partial shows "69 m³ /125" */
+    var qtdPrevHtml = isNI
+      ? qtdT.toLocaleString('pt-BR') + ' m³'
+      : isDone
+        ? qtdT.toLocaleString('pt-BR') + ' m³'
+        : qtdPrev.toLocaleString('pt-BR') + ' m³ <span style="font-size:9px;color:var(--sub)">/' + qtdT.toLocaleString('pt-BR') + '</span>';
+
+    var dash = '<span style="color:#d1d5db">—</span>';
+
+    var clsDelta = function(v) { return v > 0.05 ? 'bdg-r' : (v > 0 ? 'bdg-a' : 'bdg-g'); };
+    var bdgDelta = function(v, pctFn) {
+      if (!hasAprop) return dash;
+      return '<span class="bdg ' + clsDelta(v) + '">' + pctFn(v) + '</span>';
+    };
+
+    bodyHtml +=
+      '<tr class="' + (isNI ? 'row-ni' : '') + '">' +
+      '<td class="bold">' + r.Pavimento + '</td>' +
+      '<td>' + pctCell + '</td>' +
+      '<td class="r">' + qtdPrevHtml + '</td>' +
+      '<td class="r">R$ ' + VLR_ORC.toLocaleString('pt-BR') + '</td>' +
+      '<td class="r grp-end">' + (isNI ? dash : fmtBRL(valMed)) + '</td>' +
+      '<td class="r">' + (hasAprop ? qtdA.toLocaleString('pt-BR') + ' m³' : dash) + '</td>' +
+      '<td class="r">' + (hasAprop ? 'R$ ' + Math.round(vuA).toLocaleString('pt-BR') : dash) + '</td>' +
+      '<td class="r grp-end">' + (hasAprop ? fmtBRL(valAprop) : dash) + '</td>' +
+      '<td class="r">' + bdgDelta(dQtd, function(v){ return sgn(v*100); }) + '</td>' +
+      '<td class="r">' + bdgDelta(dVU,  function(v){ return sgn(v*100); }) + '</td>' +
+      '<td class="r">' + (hasAprop ? '<span class="bdg ' + clsDelta(Math.abs(dR)/valMed) + '">' + sgnR(dR) + '</span>' : dash) + '</td>' +
+      '<td class="r grp-end">' + bdgDelta(dPct, function(v){ return sgn(v*100); }) + '</td>' +
+      '<td class="r grp-tend-start">R$ ' + Math.round(vuTend).toLocaleString('pt-BR') + '</td>' +
+      '<td class="r">' + qtdTend.toLocaleString('pt-BR') + ' m³</td>' +
+      '<td class="r' + (isPart ? ' red' : '') + '">' + fmtBRL(valTend) + '</td>' +
+      '</tr>';
+  });
+  document.getElementById('tblCBody').innerHTML = bodyHtml;
+
+  /* ── Tfoot ── */
+  var dQtdTot = totalQtdPrev > 0 ? (totalQtdAprop - totalQtdPrev) / totalQtdPrev : 0;
+  var dVUTot  = (vlrUntReal - VLR_ORC) / VLR_ORC;
+  var dRTot   = totalValAprop - totalValMedicao;
+  var dPctTot = totalValMedicao > 0 ? dRTot / totalValMedicao : 0;
+
+  /* ── Memorial de cálculo (textos dinâmicos) ── */
+  function setHTML(id, html) { var e=document.getElementById(id); if(e) e.innerHTML=html; }
+  function setTxt(id, txt)   { var e=document.getElementById(id); if(e) e.textContent=txt; }
+
+  var vuRealFmt  = Math.round(vlrUntReal).toLocaleString('pt-BR');
+  var vlrOrcFmt  = VLR_ORC.toLocaleString('pt-BR');
+
+  setHTML('mem01',
+    'Qtd Total × Vlr. Unt. Orçado = <strong>' +
+    totalQtdOrc.toLocaleString('pt-BR') + ' m³ × R$' + vlrOrcFmt + '/m³ = ' + fmtBRL(BAC) + '</strong>');
+
+  setHTML('mem02',
+    'Σ Qtd Projeto proporcional ao % executado por pavimento = <strong>' + totalQtdPrev.toLocaleString('pt-BR') + ' m³</strong>' +
+    ' · Valor Agregado = ' + totalQtdPrev.toLocaleString('pt-BR') + ' × R$' + vlrOrcFmt + ' = <strong>' + fmtBRL(totalValMedicao) + '</strong>' +
+    ' · % Avanço = ' + totalQtdPrev.toLocaleString('pt-BR') + ' ÷ ' + totalQtdOrc.toLocaleString('pt-BR') + ' = <strong>' + fmtPct(pctFisico*100) + '</strong>');
+
+  setHTML('mem03',
+    'Σ notas fiscais de concreto lançadas no período = <strong>' + fmtBRL(totalValAprop) + ' · ' +
+    totalQtdAprop.toLocaleString('pt-BR') + ' m³</strong>' +
+    ' · % do Orçado = ' + fmtBRL(totalValAprop) + ' ÷ ' + fmtBRL(BAC) + ' = <strong>' + fmtPct(totalValAprop/BAC*100) + '</strong>');
+
+  setHTML('mem04',
+    'Desvio Total = (Apropriado − Medido Físico) ÷ Medido Físico = <strong>' + sgn(desvioTotal*100) + '</strong>' +
+    ' · Perda Qtd = (' + totalQtdAprop.toLocaleString('pt-BR') + ' − ' + totalQtdPrev.toLocaleString('pt-BR') + ') ÷ ' +
+    totalQtdPrev.toLocaleString('pt-BR') + ' = <strong>' + sgn(perdaQtd*100) + '</strong>' +
+    ' · Desvio Vlr. Unt. = (R$' + vuRealFmt + ' − R$' + vlrOrcFmt + ') ÷ R$' + vlrOrcFmt + ' = <strong>' + sgn(desvVlrUnt*100) + '</strong>');
+
+  setHTML('mem05',
+    'EAC = Valor Apropriado ÷ % Físico Medido = ' + fmtBRL(totalValAprop) + ' ÷ ' + fmtPct(pctFisico*100) + ' = <strong>' + fmtBRL(EAC) + '</strong>' +
+    ' · Vlr. Unt. Real = ' + fmtBRL(totalValAprop) + ' ÷ ' + totalQtdAprop.toLocaleString('pt-BR') + ' m³ = <strong>R$ ' + vuRealFmt + '/m³</strong>' +
+    ' · Δ vs Orçado = ' + fmtBRL(EAC) + ' − ' + fmtBRL(BAC) + ' = <strong>' + sgnR(EAC - BAC) + '</strong>');
+
+  /* ── Nota do card (contagem dinâmica) ── */
+  var cntAprop = rows.filter(function(r){ return parseFloat(r.QtdAprop) > 0; }).length;
+  setTxt('cCardNote',
+    cntAprop + ' pavimentos com concreto apropriado · ' + (rows.length - cntAprop) +
+    ' não iniciados · Referência R$ ' + vlrOrcFmt + '/m³');
+
+  document.getElementById('tblCFoot').innerHTML =
+    '<tr>' +
+    '<td><strong data-txt="CB50">Total Geral</strong></td>' +
+    '<td></td>' +
+    '<td class="r">' + totalQtdOrc.toLocaleString('pt-BR') + ' m³</td>' +
+    '<td class="r">R$ ' + VLR_ORC.toLocaleString('pt-BR') + '</td>' +
+    '<td class="r grp-end">' + fmtBRL(BAC) + '</td>' +
+    '<td class="r">' + totalQtdAprop.toLocaleString('pt-BR') + ' m³</td>' +
+    '<td class="r">R$ ' + Math.round(vlrUntReal).toLocaleString('pt-BR') + '</td>' +
+    '<td class="r grp-end">' + fmtBRL(totalValAprop) + '</td>' +
+    '<td class="r">' + sgn(dQtdTot*100) + '</td>' +
+    '<td class="r">' + sgn(dVUTot*100) + '</td>' +
+    '<td class="r">' + sgnR(dRTot) + '</td>' +
+    '<td class="r grp-end">' + sgn(dPctTot*100) + '</td>' +
+    '<td class="r grp-tend-start">R$ ' + Math.round(vlrUntReal).toLocaleString('pt-BR') + '</td>' +
+    '<td class="r">' + totalQtdTend.toLocaleString('pt-BR') + ' m³</td>' +
+    '<td class="r">' + fmtBRL(totalValTend) + '</td>' +
+    '</tr>';
+})();
+</script>
+
+</body>
+</html>

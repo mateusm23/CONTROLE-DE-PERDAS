@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloco B — Evolução Física</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="../css/main.css" rel="stylesheet">
+  <style>
+    body { padding: 26px 40px; }
+
+    /* KPI strip */
+    .kpi-b      { display:flex; gap:12px; margin-bottom:14px; }
+    .kpi-b-card { flex:1; background:#fff; border:1px solid var(--rule2); border-radius:6px; padding:12px 16px; }
+    .kpi-b-lbl  { font-size:9px; color:var(--sub); text-transform:uppercase; letter-spacing:.6px; margin-bottom:4px; }
+    .kpi-b-val  { font-size:17px; font-weight:700; color:var(--navy); line-height:1; }
+    .kpi-b-sub  { font-size:10px; color:var(--sub); margin-top:4px; }
+    .kpi-b-val.green { color:var(--green); }
+    .kpi-b-val.amber { color:var(--amber); }
+    .kpi-b-val.red   { color:var(--red); }
+
+    /* Status pill na tabela */
+    .st-pill {
+      display: inline-block; font-size: 9px; font-weight: 700;
+      letter-spacing: .5px; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 3px; white-space: nowrap;
+    }
+    .st-pill.done     { background: var(--green);  color: #fff; }
+    .st-pill.progress { background: var(--amber);  color: #fff; }
+    .st-pill.reprog   { background: #cbd5e1;        color: #475569; }
+
+    /* Tags de obs na tabela */
+    .tbl-obs-tag { font-size: 11px; color: var(--sub); }
+    .tbl-obs-tag + .tbl-obs-tag::before { content: ' · '; color: var(--rule); }
+
+    /* Cabeçalho da tabela azul escuro */
+    .tbl thead tr { background: var(--navy); border-bottom: none; }
+    .tbl thead th { color: #fff; font-size: 11px; letter-spacing: .4px; }
+
+    .tbl tbody td,
+    .tbl thead th { padding: 5px 12px; }
+
+    /* Coluna de status centralizada */
+    .tbl thead th:first-child,
+    .tbl tbody td:first-child { text-align: center; }
+
+    /* Linha zerada */
+    .tbl-zero td { color: var(--text); }
+    .tbl-zero td span[style] { color: #9ca3af; }
+
+    /* Zebra */
+    .tbl tbody tr:nth-child(even) td { background: var(--light); }
+
+    /* Valores numéricos */
+    .tbl tbody td.r { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--navy); }
+    .tbl tfoot td.r { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+
+<div class="blk">
+  <div class="blk-head">
+    <span class="blk-num">B</span>
+    <span class="blk-title" data-txt="B01">Evolução Física — Concretagem por Pavimento</span>
+    <span class="blk-sub" data-txt="B02">Percentual de concretagem executado por pavimento · BE Bonifácio · Base Jun/2026</span>
+  </div>
+
+  <div class="kpi-b" id="kpiStrip"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-head-title" data-txt="B07">Detalhamento de Concretagem por Pavimento</span>
+      <span class="card-head-note" id="cardNote"></span>
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th class="c" style="width:32px"></th>
+          <th data-txt="B08">Pavimento</th>
+          <th class="r" data-txt="B09">% Exec. Pav.</th>
+          <th class="r" data-txt="B10">% Medido</th>
+          <th class="r" data-txt="B11">% A Medir</th>
+          <th class="r" data-txt="B12">Vlr. Concreto Previsto</th>
+          <th class="r" data-txt="B13">Vlr. Concreto A Concretar</th>
+          <th data-txt="B14">Pendências de Concretagem</th>
+        </tr>
+      </thead>
+      <tbody id="tblBody"></tbody>
+      <tfoot>
+        <tr id="tblFoot"></tr>
+      </tfoot>
+    </table>
+    <div class="tbl-note" id="tblNote"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var D = window.DATA || {};
+  var ORCAMENTO      = (D.parametros && D.parametros.BAC)      || 2088000;
+  var TODAY_STR      = (D.parametros && D.parametros.DataHoje) || '09/06/2026';
+  var cronogramaData = D.cronograma || [];
+  var evolucaoB      = D.evolucaoB  || [];
+
+  /* Build pctExecMap and obsMap from Evolucao-B tab */
+  var pctExecMap = {}, obsMap = {};
+  evolucaoB.forEach(function(r) {
+    if (r.Pavimento && r.PctExec) pctExecMap[r.Pavimento] = parseFloat(r.PctExec) || 0;
+    var obs = [r.Obs1, r.Obs2, r.Obs3].filter(function(o){ return o && String(o).trim() !== ''; });
+    if (obs.length) obsMap[r.Pavimento] = obs;
+  });
+
+  function parseBR(s){ if(!s) return null; var p=String(s).split('/'); return new Date(+p[2],+p[1]-1,+p[0]); }
+  function fmtBRL(n){ return 'R$ '+Math.round(n).toLocaleString('pt-BR'); }
+  function fmtPct(n, dec){ dec = dec===undefined ? 1 : dec; return n.toFixed(dec).replace('.',',')+' %'; }
+
+  var TODAY = parseBR(TODAY_STR);
+
+  function statusOf(p){
+    if(p.RealS && p.RealE)      return 'done';
+    if(p.RealS)                  return 'progress';
+    if(p.ReprogS || p.ReprogE)   return 'reprog';
+    return 'future';
+  }
+
+  function getPctExec(p){
+    var st = statusOf(p);
+    if(st === 'done')     return 100;
+    if(st === 'progress') return pctExecMap[p.Pavimento] || 0;
+    return 0;
+  }
+
+  /* KPI strip */
+  var metaPeso=0, concPeso=0, parcPeso=0;
+  cronogramaData.forEach(function(p){
+    var peso = parseFloat(p.Peso) || 0;
+    if(parseBR(p.PlanE) <= TODAY) metaPeso += peso;
+    var st = statusOf(p);
+    if(st === 'done')     concPeso += peso;
+    if(st === 'progress') parcPeso += peso;
+  });
+  var metaR = ORCAMENTO*metaPeso/100;
+  var concR = ORCAMENTO*concPeso/100;
+  var parcR = ORCAMENTO*parcPeso/100;
+  var desvR = concR - metaR;
+  var desvP = concPeso - metaPeso;
+
+  var T = window.TEXTS || {};
+  var kHtml = '';
+  [{l: T['B03'] || 'Meta Planejada — Jun/2026',        v:fmtBRL(metaR), s:fmtPct(metaPeso)+' do Orçamento', c:''},
+   {l: T['B04'] || 'Avanço Físico Concluído',           v:fmtBRL(concR), s:fmtPct(concPeso)+' do Orçamento', c:'green'},
+   {l: T['B05'] || 'Avanço Parcial',                    v:fmtBRL(parcR), s:fmtPct(parcPeso)+' do Orçamento', c:'amber'},
+   {l: T['B06'] || 'Desvio Físico (Realizado vs Meta)', v:(desvR>=0?'+':'')+fmtBRL(desvR), s:(desvP>=0?'+':'')+fmtPct(desvP)+' pp', c:desvR<0?'red':'green'}
+  ].forEach(function(x){
+    kHtml += '<div class="kpi-b-card">' +
+      '<div class="kpi-b-lbl">'+x.l+'</div>' +
+      '<div class="kpi-b-val '+x.c+'">'+x.v+'</div>' +
+      '<div class="kpi-b-sub">'+x.s+'</div>' +
+      '</div>';
+  });
+  document.getElementById('kpiStrip').innerHTML = kHtml;
+
+  /* Group by Grupo */
+  var byGrupo = {Embasamento:[], Torre:[], Coroamento:[]};
+  cronogramaData.forEach(function(p){ if(byGrupo[p.Grupo]) byGrupo[p.Grupo].push(p); });
+
+  var cntDone=0, cntParc=0, cntNao=0;
+  cronogramaData.forEach(function(p){
+    var st=statusOf(p);
+    if(st==='done')          cntDone++;
+    else if(st==='progress') cntParc++;
+    else                     cntNao++;
+  });
+  document.getElementById('cardNote').textContent =
+    cntDone+' concluídos · '+cntParc+' avanço parcial · '+cntNao+' não iniciados';
+
+  /* Running totals */
+  var totalMedidoPct = 0, totalAMedirPct = 0, totalValPrev = 0, totalValAMedir = 0;
+  cronogramaData.forEach(function(p){
+    var peso = parseFloat(p.Peso) || 0;
+    var pctE = getPctExec(p);
+    var med  = peso * pctE / 100;
+    var amed = peso - med;
+    totalMedidoPct += med;
+    totalAMedirPct += amed;
+    totalValPrev   += ORCAMENTO * med  / 100;
+    totalValAMedir += ORCAMENTO * amed / 100;
+  });
+
+  /* Detail table */
+  var GRUPOS = ['Coroamento','Torre','Embasamento'];
+  var rows = '';
+
+  GRUPOS.forEach(function(g){
+    var items = byGrupo[g] || [];
+    var list = items.slice().reverse();
+
+    list.forEach(function(p){
+      var peso    = parseFloat(p.Peso) || 0;
+      var st      = statusOf(p);
+      var pctExec = getPctExec(p);
+      var med     = peso * pctExec / 100;
+      var amed    = peso - med;
+      var valPrev = ORCAMENTO * med  / 100;
+      var valAmed = ORCAMENTO * amed / 100;
+      var obs     = obsMap[p.Pavimento] || [];
+
+      var isZero  = pctExec === 0;
+      var trClass = isZero ? 'tbl-zero' : '';
+
+      var shortName = String(p.Pavimento)
+        .replace('EMBASAMENTO - ','')
+        .replace('TORRE - ','')
+        .replace('COROAMENTO - ','');
+
+      var obsHtml = obs.length
+        ? obs.map(function(o){ return '<span class="tbl-obs-tag">'+o+'</span>'; }).join('')
+        : '<span style="color:#d1d5db">—</span>';
+
+      var execStr = isZero ? '<span style="color:#d1d5db">—</span>' : fmtPct(pctExec, 0);
+      var medStr  = isZero ? '<span style="color:#d1d5db">—</span>' : fmtPct(med, 2);
+      var amedStr = fmtPct(amed, 2);
+      var vpStr   = isZero ? '<span style="color:#d1d5db">—</span>' : fmtBRL(valPrev);
+      var vaStr   = fmtBRL(valAmed);
+
+      var PILL_LABEL = {done:'Concluído', progress:'Avanço Parcial', reprog:'Não Iniciado', future:'Não Iniciado'};
+      rows +=
+        '<tr class="'+trClass+'">' +
+          '<td class="c"><span class="st-pill '+st+'">'+PILL_LABEL[st]+'</span></td>' +
+          '<td class="bold">'+shortName+'</td>' +
+          '<td class="r">'+execStr+'</td>' +
+          '<td class="r">'+medStr+'</td>' +
+          '<td class="r">'+amedStr+'</td>' +
+          '<td class="r">'+vpStr+'</td>' +
+          '<td class="r">'+vaStr+'</td>' +
+          '<td>'+obsHtml+'</td>' +
+        '</tr>';
+    });
+  });
+
+  document.getElementById('tblBody').innerHTML = rows;
+
+  document.getElementById('tblFoot').innerHTML =
+    '<td></td>' +
+    '<td>' + (T['B15'] || 'Total') + '</td>' +
+    '<td class="r">—</td>' +
+    '<td class="r">'+fmtPct(totalMedidoPct, 2)+'</td>' +
+    '<td class="r">'+fmtPct(totalAMedirPct, 2)+'</td>' +
+    '<td class="r">'+fmtBRL(totalValPrev)+'</td>' +
+    '<td class="r">'+fmtBRL(totalValAMedir)+'</td>' +
+    '<td></td>';
+
+  document.getElementById('tblNote').textContent =
+    'Orçamento de concreto usinado (BAC): ' + fmtBRL(ORCAMENTO) +
+    ' · % executado calculado sobre o peso de concretagem por pavimento · Valores de concreto proporcionais ao avanço físico medido.';
+
+})();
+</script>
+
+</body>
+</html>
