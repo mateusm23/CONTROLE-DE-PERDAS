@@ -554,7 +554,7 @@
       var ev=i%2?' ev':'';
       var ps=p.PlanS||'', pe=p.PlanE||'', rs=p.RealS||'', re=p.RealE||'', rps=p.ReprogS||'', rpe=p.ReprogE||'';
       var peso=parseFloat(p.Peso)||0;
-      var planBar='<div class="gt-bar plan" style="left:'+barL(ps)+';width:'+barW(ps,pe)+'"></div>';
+      var planBar = (ps && pe) ? '<div class="gt-bar plan" style="left:'+barL(ps)+';width:'+barW(ps,pe)+'"></div>' : '';
       var t2='';
       if(rs&&re){
         t2='<div class="gt-bar real" style="left:'+barL(rs)+';width:'+barW(rs,re)+'"></div>';
