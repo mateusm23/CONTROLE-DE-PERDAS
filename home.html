@@ -419,7 +419,10 @@
         var ext    = newPhotoFile.name.split('.').pop();
         var path   = obraId + '/capa.' + ext;
         var { error: upErr } = await db.storage.from('fotos').upload(path, newPhotoFile, { upsert: true });
-        if (!upErr) {
+        if (upErr) {
+          console.error('Upload foto erro:', upErr.message);
+          notify('Atenção: foto não enviada — ' + upErr.message);
+        } else {
           var { data: urlData } = db.storage.from('fotos').getPublicUrl(path);
           payload.foto_url = urlData.publicUrl;
         }
