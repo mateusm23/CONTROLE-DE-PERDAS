@@ -329,6 +329,8 @@
 <div class="empty-search" id="emptySearch">Nenhum campo encontrado para esta busca.</div>
 
 <script>
+  if (!localStorage.getItem('usuario')) { window.location.href = 'login.html'; }
+
   var fieldsMeta = [];   // [{ id, secao, campo, texto }] — ordem preservada
   var origValues = {};   // { id: textoOriginal }
   var STORAGE_KEY = 'relatorio_concreto_texts_v1';

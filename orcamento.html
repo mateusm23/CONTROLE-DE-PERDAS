@@ -203,6 +203,7 @@
   var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
   var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
   var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+  if (!localStorage.getItem('usuario')) { window.location.href = 'login.html'; }
   var OBRA_ID = new URLSearchParams(window.location.search).get('obra');
   if (!OBRA_ID) { window.location.href = 'home.html'; }
   var lines = [];

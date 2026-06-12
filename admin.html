@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciamento de Acessos · Portal de Auditoria</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 13px; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: #0d1f35; height: 52px; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #1b2d4a; flex-shrink: 0;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .topbar-left  { display: flex; align-items: center; gap: 10px; }
+    .topbar-divider { width: 1px; height: 18px; background: #243659; }
+    .topbar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #277EBD; }
+    .topbar-title { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .topbar-user  { font-size: 11px; color: #4a6080; display: flex; align-items: center; gap: 8px; }
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 14px; border-radius: 5px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      background: transparent; color: #94a3b8; border: 1px solid #243659;
+      font-family: inherit; text-decoration: none; transition: background .12s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,.06); color: #cbd5e1; }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 52px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-head {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      flex-shrink: 0;
+    }
+    .sidebar-head-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: #64748b;
+    }
+    .sidebar-head-sub {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .users-list {
+      overflow-y: auto;
+      flex: 1;
+    }
+    .user-item {
+      padding: 11px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #f8fafc;
+      transition: background .1s;
+    }
+    .user-item:hover { background: #f8fafc; }
+    .user-item.active { background: #eff6ff; border-left: 3px solid #277EBD; padding-left: 13px; }
+    .user-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #64748b;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+    .user-item.active .user-avatar { background: #dbeafe; color: #1d4ed8; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 12px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-obras { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+
+    .sidebar-empty { padding: 40px 16px; text-align: center; color: #94a3b8; font-size: 11px; }
+
+    /* ── Main content ── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #94a3b8;
+    }
+    .empty-state-title { font-size: 14px; font-weight: 600; color: #475569; }
+    .empty-state-sub   { font-size: 12px; }
+
+    /* ── Content header ── */
+    .content-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .content-head-info { display: flex; flex-direction: column; gap: 2px; }
+    .content-head-title { font-size: 15px; font-weight: 700; color: #1b2a4a; }
+    .content-head-sub   { font-size: 11px; color: #94a3b8; }
+
+    .badge-count {
+      background: #277EBD;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    /* ── Obras card ── */
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+    .card-bar {
+      background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+      padding: 10px 16px;
+      font-size: 11px; font-weight: 700; color: #1b2a4a;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+
+    .tbl { width: 100%; border-collapse: collapse; }
+    .tbl thead th {
+      background: #f8fafc; color: #64748b;
+      font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+      padding: 9px 14px; text-align: left; border-bottom: 2px solid #e2e8f0;
+    }
+    .tbl thead th.c { text-align: center; }
+    .tbl tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
+    .tbl tbody tr:last-child { border-bottom: none; }
+    .tbl tbody tr:hover { background: #fafcff; }
+    .tbl tbody td { padding: 10px 14px; vertical-align: middle; }
+
+    .obra-name  { font-size: 12px; font-weight: 600; color: #1b2a4a; }
+    .obra-meta  { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+
+    /* ── Status badge ── */
+    .status { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+    .status-ativo    { background: #dcfce7; color: #166534; }
+    .status-pausado  { background: #fef9c3; color: #854d0e; }
+    .status-concluido{ background: #dbeafe; color: #1d4ed8; }
+
+    /* ── Toggle switch ── */
+    .toggle-wrap { display: flex; align-items: center; justify-content: center; }
+    .toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #e2e8f0; border-radius: 22px; transition: .2s;
+    }
+    .toggle-slider:before {
+      content: ''; position: absolute;
+      height: 16px; width: 16px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%;
+      transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    }
+    .toggle input:checked + .toggle-slider { background: #277EBD; }
+    .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+    .toggle input:disabled + .toggle-slider { opacity: .5; cursor: not-allowed; }
+
+    /* ── Notif ── */
+    .notif {
+      position: fixed; bottom: 24px; right: 20px;
+      background: #1e293b; color: #f1f5f9; padding: 8px 14px;
+      border-radius: 5px; font-size: 11px; font-weight: 500;
+      border-left: 3px solid #277EBD;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      opacity: 0; transform: translateY(6px);
+      transition: opacity .18s, transform .18s; pointer-events: none; z-index: 500;
+    }
+    .notif.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Loading spinner ── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid #e2e8f0; border-top-color: #277EBD;
+      border-radius: 50%; animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="notif" id="notif"></div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-label">Trinus · Master</span>
+    <div class="topbar-divider"></div>
+    <span class="topbar-title">Gerenciamento de Acessos</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="topbar-user" id="topUser"></span>
+    <a class="btn-back" href="home.html">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Obras
+    </a>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar: lista de usuários -->
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-head-title">Usuários</div>
+      <div class="sidebar-head-sub" id="sidebarSub">Carregando...</div>
+    </div>
+    <div class="users-list" id="usersList">
+      <div class="sidebar-empty"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Conteúdo principal -->
+  <div class="content" id="mainContent">
+    <div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="#cbd5e1" stroke-width="1.5"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/><path d="M16 11l2 2 4-4" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="empty-state-title">Selecione um usuário</div>
+      <div class="empty-state-sub">Escolha um usuário na lista para gerenciar seus acessos</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
+  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
+  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  // ── Auth check ──
+  var sessao = JSON.parse(localStorage.getItem('usuario') || 'null');
+  if (!sessao) { window.location.href = 'login.html'; }
+  if (sessao && sessao.perfil !== 'master') { window.location.href = 'home.html'; }
+  document.getElementById('topUser').textContent = sessao ? sessao.nome : '';
+
+  var usuarios = [];
+  var obras    = [];
+  var acessosMap = {}; // { usuario_id: Set<obra_id> }
+  var selectedUserId = null;
+
+  // ── Init ──
+  async function init() {
+    try {
+      var [r1, r2, r3] = await Promise.all([
+        db.from('usuarios').select('id, nome, perfil').order('nome'),
+        db.from('obras').select('id, nome, codigo, status, localizacao').order('nome'),
+        db.from('acessos').select('usuario_id, obra_id')
+      ]);
+
+      usuarios = (r1.data || []).filter(function(u) { return u.perfil !== 'master'; });
+      obras    = r2.data || [];
+
+      // Montar mapa de acessos
+      acessosMap = {};
+      usuarios.forEach(function(u) { acessosMap[u.id] = new Set(); });
+      (r3.data || []).forEach(function(a) {
+        if (acessosMap[a.usuario_id]) acessosMap[a.usuario_id].add(a.obra_id);
+      });
+
+      renderSidebar();
+    } catch(e) {
+      document.getElementById('sidebarSub').textContent = 'Erro ao carregar';
+    }
+  }
+
+  // ── Sidebar ──
+  function renderSidebar() {
+    document.getElementById('sidebarSub').textContent =
+      usuarios.length + ' usuário' + (usuarios.length !== 1 ? 's' : '');
+
+    if (!usuarios.length) {
+      document.getElementById('usersList').innerHTML =
+        '<div class="sidebar-empty">Nenhum usuário cadastrado além do master.</div>';
+      return;
+    }
+
+    document.getElementById('usersList').innerHTML = usuarios.map(function(u) {
+      var n = acessosMap[u.id] ? acessosMap[u.id].size : 0;
+      var initials = u.nome.split(' ').map(function(p){ return p[0]; }).slice(0,2).join('').toUpperCase();
+      return (
+        '<div class="user-item'+(u.id===selectedUserId?' active':'')+'" onclick="selectUser(\''+u.id+'\')" id="item_'+u.id+'">'+
+          '<div class="user-avatar">'+esc(initials)+'</div>'+
+          '<div class="user-info">'+
+            '<div class="user-name">'+esc(u.nome)+'</div>'+
+            '<div class="user-obras" id="obras_count_'+u.id+'">'+n+' obra'+(n!==1?'s':'')+' com acesso</div>'+
+          '</div>'+
+        '</div>'
+      );
+    }).join('');
+  }
+
+  // ── Selecionar usuário ──
+  function selectUser(userId) {
+    selectedUserId = userId;
+    var user = usuarios.find(function(u){ return u.id === userId; });
+    if (!user) return;
+
+    // Atualiza sidebar
+    document.querySelectorAll('.user-item').forEach(function(el) { el.classList.remove('active'); });
+    var item = document.getElementById('item_'+userId);
+    if (item) item.classList.add('active');
+
+    renderContent(user);
+  }
+
+  // ── Conteúdo: obras com toggles ──
+  function renderContent(user) {
+    var accessSet = acessosMap[user.id] || new Set();
+    var count = accessSet.size;
+
+    var rows = obras.map(function(o) {
+      var checked = accessSet.has(o.id);
+      var statusCls = { ativo:'status-ativo', pausado:'status-pausado', concluido:'status-concluido' }[o.status] || 'status-ativo';
+      var statusLbl = { ativo:'Ativo', pausado:'Pausado', concluido:'Concluído' }[o.status] || 'Ativo';
+      return (
+        '<tr>'+
+        '<td>'+
+          '<div class="obra-name">'+esc(o.nome)+'</div>'+
+          '<div class="obra-meta">'+(o.codigo?esc(o.codigo)+' · ':'')+esc(o.localizacao||'')+'</div>'+
+        '</td>'+
+        '<td><span class="status '+statusCls+'">'+statusLbl+'</span></td>'+
+        '<td class="c">'+
+          '<div class="toggle-wrap">'+
+            '<label class="toggle">'+
+              '<input type="checkbox"'+(checked?' checked':'')+
+                ' onchange="toggleAcesso(\''+user.id+'\',\''+o.id+'\',this)">'+
+              '<span class="toggle-slider"></span>'+
+            '</label>'+
+          '</div>'+
+        '</td>'+
+        '</tr>'
+      );
+    }).join('');
+
+    var emptyObras = !obras.length
+      ? '<tr><td colspan="3" style="padding:40px;text-align:center;color:#94a3b8;font-size:12px">Nenhuma obra cadastrada no sistema.</td></tr>'
+      : rows;
+
+    document.getElementById('mainContent').innerHTML =
+      '<div class="content-head">'+
+        '<div class="content-head-info">'+
+          '<div class="content-head-title">'+esc(user.nome)+'</div>'+
+          '<div class="content-head-sub">Ative ou desative o acesso por obra</div>'+
+        '</div>'+
+        '<span class="badge-count" id="badgeCount">'+count+' acesso'+(count!==1?'s':'')+'</span>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="card-bar">Obras disponíveis</div>'+
+        '<table class="tbl">'+
+          '<thead><tr>'+
+            '<th>Obra</th>'+
+            '<th style="width:110px">Status</th>'+
+            '<th style="width:90px" class="c">Acesso</th>'+
+          '</tr></thead>'+
+          '<tbody>'+emptyObras+'</tbody>'+
+        '</table>'+
+      '</div>';
+  }
+
+  // ── Toggle acesso ──
+  async function toggleAcesso(userId, obraId, checkbox) {
+    checkbox.disabled = true;
+
+    try {
+      if (checkbox.checked) {
+        var { error } = await db.from('acessos').insert({ usuario_id: userId, obra_id: obraId });
+        if (error) throw error;
+        acessosMap[userId].add(obraId);
+        notify('Acesso liberado');
+      } else {
+        var { error } = await db.from('acessos').delete().eq('usuario_id', userId).eq('obra_id', obraId);
+        if (error) throw error;
+        acessosMap[userId].delete(obraId);
+        notify('Acesso removido');
+      }
+
+      // Atualiza contador na sidebar e no header
+      var n = acessosMap[userId].size;
+      var countEl = document.getElementById('obras_count_'+userId);
+      if (countEl) countEl.textContent = n+' obra'+(n!==1?'s':'')+' com acesso';
+      var badgeEl = document.getElementById('badgeCount');
+      if (badgeEl) badgeEl.textContent = n+' acesso'+(n!==1?'s':'');
+
+    } catch(e) {
+      checkbox.checked = !checkbox.checked; // reverte visualmente
+      notify('Erro ao salvar acesso');
+    } finally {
+      checkbox.disabled = false;
+    }
+  }
+
+  // ── Helpers ──
+  function esc(s) {
+    return String(s==null?'':s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function notify(msg) {
+    var el = document.getElementById('notif');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(function(){ el.classList.remove('show'); }, 2200);
+  }
+
+  init();
+</script>
+</body>
+</html>

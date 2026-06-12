@@ -164,9 +164,18 @@
   </div>
   <div class="topbar-right">
     <div class="conn-dot loading" id="connDot"></div>
+    <span id="topUserName" style="font-size:11px;color:#4a6080;margin-right:4px;"></span>
+    <a href="admin.html" id="btnAdmin" class="btn btn-ghost" style="display:none">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Admin
+    </a>
     <button class="btn btn-ghost" onclick="openModal()">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       Nova obra
+    </button>
+    <button class="btn btn-ghost" onclick="logout()" style="color:#ef4444;border-color:#3a2020;">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Sair
     </button>
   </div>
 </div>
@@ -261,6 +270,12 @@
   var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
   var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
   var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  var _sessao = JSON.parse(localStorage.getItem('usuario') || 'null');
+  if (!_sessao) { window.location.href = 'login.html'; }
+  document.getElementById('topUserName').textContent = _sessao ? _sessao.nome : '';
+  if (_sessao && _sessao.perfil === 'master') { document.getElementById('btnAdmin').style.display = ''; }
+  function logout() { localStorage.removeItem('usuario'); window.location.href = 'login.html'; }
 
   var obras  = [];
   var stats  = {};

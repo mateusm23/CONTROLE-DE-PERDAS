@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login · Portal de Auditoria</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0d1f35;
+      color: #1e293b;
+      font-size: 13px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 380px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Branding ── */
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-logo {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #277EBD;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: #4a6080;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      overflow: hidden;
+    }
+    .card-head {
+      background: #1b2a4a;
+      padding: 16px 20px;
+      border-bottom: 2px solid #277EBD;
+    }
+    .card-head-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .card-head-sub {
+      font-size: 10px;
+      color: #4a6080;
+      margin-top: 2px;
+    }
+    .card-body {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Fields ── */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+    }
+    .field input {
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #1e293b;
+      outline: none;
+      transition: border-color .1s, box-shadow .1s;
+    }
+    .field input:focus {
+      border-color: #277EBD;
+      box-shadow: 0 0 0 3px rgba(39,126,189,.1);
+    }
+    .field input.err { border-color: #ef4444; }
+
+    /* ── Error msg ── */
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #dc2626;
+      display: none;
+    }
+    .error-msg.show { display: block; }
+
+    /* ── Button ── */
+    .btn-login {
+      height: 40px;
+      background: #277EBD;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .12s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-login:hover:not(:disabled) { background: #1d6ca6; }
+    .btn-login:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Footer ── */
+    .card-foot {
+      padding: 14px 20px;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      justify-content: center;
+    }
+    .link {
+      font-size: 11px;
+      color: #277EBD;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .link:hover { text-decoration: underline; }
+
+    .copy {
+      text-align: center;
+      font-size: 10px;
+      color: #243659;
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand">
+    <div class="brand-logo">Gerenciadora Trinus</div>
+    <div class="brand-title">Portal de Auditoria</div>
+    <div class="brand-sub">Concreto Usinado</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-title">Acesso ao sistema</div>
+      <div class="card-head-sub">Informe suas credenciais para continuar</div>
+    </div>
+    <div class="card-body">
+      <div class="field">
+        <label>Usuário</label>
+        <input type="text" id="fNome" placeholder="Seu nome de usuário" autocomplete="username"
+          onkeydown="if(event.key==='Enter') document.getElementById('fSenha').focus()">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="fSenha" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') login()">
+      </div>
+      <div class="error-msg" id="errMsg"></div>
+      <button class="btn-login" id="btnLogin" onclick="login()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Entrar
+      </button>
+    </div>
+    <div class="card-foot">
+      <a class="link" href="cadastro.html">Criar novo usuário</a>
+    </div>
+  </div>
+
+  <div class="copy">Trinus Capital · Engenharia de Custos &amp; BI · 2026</div>
+</div>
+
+<script>
+  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
+  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
+  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  // Se já está logado, vai direto para home
+  if (localStorage.getItem('usuario')) {
+    window.location.href = 'home.html';
+  }
+
+  function showError(msg) {
+    var el = document.getElementById('errMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+    document.getElementById('fNome').classList.add('err');
+    document.getElementById('fSenha').classList.add('err');
+  }
+
+  function clearError() {
+    document.getElementById('errMsg').classList.remove('show');
+    document.getElementById('fNome').classList.remove('err');
+    document.getElementById('fSenha').classList.remove('err');
+  }
+
+  async function login() {
+    clearError();
+    var nome  = document.getElementById('fNome').value.trim();
+    var senha = document.getElementById('fSenha').value;
+
+    if (!nome)  { document.getElementById('fNome').focus(); return; }
+    if (!senha) { document.getElementById('fSenha').focus(); return; }
+
+    var btn = document.getElementById('btnLogin');
+    btn.textContent = 'Entrando...';
+    btn.disabled = true;
+
+    try {
+      var { data, error } = await db
+        .from('usuarios')
+        .select('id, nome, perfil')
+        .eq('nome', nome)
+        .eq('senha', senha)
+        .single();
+
+      if (error || !data) {
+        showError('Usuário ou senha incorretos.');
+        document.getElementById('fSenha').value = '';
+        document.getElementById('fSenha').focus();
+        return;
+      }
+
+      localStorage.setItem('usuario', JSON.stringify({ id: data.id, nome: data.nome, perfil: data.perfil || 'usuario' }));
+      window.location.href = 'home.html';
+
+    } catch(e) {
+      showError('Erro de conexão. Tente novamente.');
+    } finally {
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Entrar';
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

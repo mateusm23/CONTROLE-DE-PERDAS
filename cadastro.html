@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar Usuário · Portal de Auditoria</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0d1f35;
+      color: #1e293b;
+      font-size: 13px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 380px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Branding ── */
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-logo {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #277EBD;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: #4a6080;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      overflow: hidden;
+    }
+    .card-head {
+      background: #1b2a4a;
+      padding: 16px 20px;
+      border-bottom: 2px solid #277EBD;
+    }
+    .card-head-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .card-head-sub {
+      font-size: 10px;
+      color: #4a6080;
+      margin-top: 2px;
+    }
+    .card-body {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Fields ── */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+    }
+    .field input {
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #1e293b;
+      outline: none;
+      transition: border-color .1s, box-shadow .1s;
+    }
+    .field input:focus {
+      border-color: #277EBD;
+      box-shadow: 0 0 0 3px rgba(39,126,189,.1);
+    }
+    .field input.err { border-color: #ef4444; }
+    .field-hint {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    /* ── Senha strength ── */
+    .senha-rules {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: #94a3b8;
+      transition: color .15s;
+    }
+    .rule.ok { color: #16a34a; }
+    .rule-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .rule.ok .rule-dot { background: #16a34a; }
+
+    /* ── Messages ── */
+    .msg {
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      display: none;
+    }
+    .msg.show { display: block; }
+    .msg.err  { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+    .msg.ok   { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+
+    /* ── Buttons ── */
+    .btn-salvar {
+      height: 40px;
+      background: #277EBD;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .12s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-salvar:hover:not(:disabled) { background: #1d6ca6; }
+    .btn-salvar:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Footer ── */
+    .card-foot {
+      padding: 14px 20px;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      justify-content: center;
+    }
+    .link {
+      font-size: 11px;
+      color: #64748b;
+      text-decoration: none;
+    }
+    .link span { color: #277EBD; font-weight: 500; }
+    .link:hover span { text-decoration: underline; }
+
+    .copy {
+      text-align: center;
+      font-size: 10px;
+      color: #243659;
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand">
+    <div class="brand-logo">Gerenciadora Trinus</div>
+    <div class="brand-title">Portal de Auditoria</div>
+    <div class="brand-sub">Concreto Usinado</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-title">Criar usuário</div>
+      <div class="card-head-sub">Preencha os dados para criar um novo acesso</div>
+    </div>
+    <div class="card-body">
+      <div class="field">
+        <label>Nome de usuário *</label>
+        <input type="text" id="fNome" placeholder="Ex: João Silva" autocomplete="username"
+          oninput="clearMsg()"
+          onkeydown="if(event.key==='Enter') document.getElementById('fSenha').focus()">
+      </div>
+
+      <div class="field">
+        <label>Senha *</label>
+        <input type="password" id="fSenha" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
+          oninput="checkRules()"
+          onkeydown="if(event.key==='Enter') document.getElementById('fConf').focus()">
+        <div class="senha-rules">
+          <div class="rule" id="ruleLen"><div class="rule-dot"></div> Mínimo 6 caracteres</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Confirmar senha *</label>
+        <input type="password" id="fConf" placeholder="Repita a senha" autocomplete="new-password"
+          oninput="checkRules()"
+          onkeydown="if(event.key==='Enter') cadastrar()">
+      </div>
+
+      <div class="msg err" id="errMsg"></div>
+      <div class="msg ok"  id="okMsg"></div>
+
+      <button class="btn-salvar" id="btnSalvar" onclick="cadastrar()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13 4L6.5 11 3 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Criar usuário
+      </button>
+    </div>
+    <div class="card-foot">
+      <a class="link" href="login.html">Já tem conta? <span>Fazer login</span></a>
+    </div>
+  </div>
+
+  <div class="copy">Trinus Capital · Engenharia de Custos &amp; BI · 2026</div>
+</div>
+
+<script>
+  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
+  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
+  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  function checkRules() {
+    var senha = document.getElementById('fSenha').value;
+    toggleRule('ruleLen', senha.length >= 6);
+  }
+
+  function toggleRule(id, ok) {
+    var el = document.getElementById(id);
+    if (ok) el.classList.add('ok'); else el.classList.remove('ok');
+  }
+
+  function clearMsg() {
+    document.getElementById('errMsg').classList.remove('show');
+    document.getElementById('okMsg').classList.remove('show');
+    document.getElementById('fNome').classList.remove('err');
+  }
+
+  function showError(msg) {
+    var el = document.getElementById('errMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+    document.getElementById('okMsg').classList.remove('show');
+  }
+
+  function showOk(msg) {
+    var el = document.getElementById('okMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+    document.getElementById('errMsg').classList.remove('show');
+  }
+
+  async function cadastrar() {
+    clearMsg();
+
+    var nome  = document.getElementById('fNome').value.trim();
+    var senha = document.getElementById('fSenha').value;
+    var conf  = document.getElementById('fConf').value;
+
+    if (!nome)  { document.getElementById('fNome').focus(); return; }
+    if (!senha) { document.getElementById('fSenha').focus(); return; }
+    if (senha.length < 6) { showError('A senha precisa ter ao menos 6 caracteres.'); return; }
+    if (senha !== conf)   { showError('As senhas não coincidem.'); document.getElementById('fConf').focus(); return; }
+
+    var btn = document.getElementById('btnSalvar');
+    btn.textContent = 'Criando...';
+    btn.disabled = true;
+
+    try {
+      var { data, error } = await db
+        .from('usuarios')
+        .insert({ nome: nome, senha: senha })
+        .select('id, nome')
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          showError('Este nome de usuário já está em uso. Escolha outro.');
+          document.getElementById('fNome').classList.add('err');
+          document.getElementById('fNome').focus();
+        } else {
+          showError('Erro ao criar usuário: ' + error.message);
+        }
+        return;
+      }
+
+      showOk('Usuário "' + data.nome + '" criado com sucesso! Redirecionando...');
+      document.getElementById('fNome').value  = '';
+      document.getElementById('fSenha').value = '';
+      document.getElementById('fConf').value  = '';
+
+      setTimeout(function() { window.location.href = 'login.html'; }, 1800);
+
+    } catch(e) {
+      showError('Erro de conexão. Tente novamente.');
+    } finally {
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13 4L6.5 11 3 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Criar usuário';
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
