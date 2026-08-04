@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// Regras do banco (Firestore) do Portal de Auditoria de Concreto.
+//
+// COMO USAR: Firebase Console → Firestore Database → aba "Rules" →
+// apaga o que tiver lá → cola este arquivo inteiro → Publish.
+//
+// O que isso garante: só quem fez login no site (usuário/senha válidos)
+// consegue ler ou gravar qualquer informação. Ninguém de fora, sem login,
+// consegue acessar nada — mesmo sabendo o endereço do projeto.
+//
+// O que isso NÃO garante ainda: que só o usuário "master" possa criar/
+// apagar obras ou liberar acesso — essa checagem hoje é feita só na tela
+// (JavaScript), igual já era no site antigo. Dá pra reforçar isso aqui
+// depois, se quiser.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    match /usuarios/{userId} {
+      allow read: if logado();
+      // Ao se cadastrar, só pode criar o próprio usuário e sempre como
+      // perfil "usuario" — ninguém vira "master" sozinho pelo site.
+      allow create: if logado() && request.auth.uid == userId
+                    && request.resource.data.perfil == 'usuario';
+      allow update, delete: if false;
+    }
+
+    match /obras/{obraId} {
+      allow read, write: if logado();
+    }
+
+    match /acessos/{acessoId} {
+      allow read, write: if logado();
+    }
+
+    match /orcamento/{docId} {
+      allow read, write: if logado();
+    }
+
+    match /visao_fisica/{docId} {
+      allow read, write: if logado();
+    }
+
+    match /apropriacao/{docId} {
+      allow read, write: if logado();
+    }
+  }
+}

@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Visão Física · Portal de Auditoria de Concreto</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -149,6 +148,11 @@
   </div>
   <div class="topbar-right">
     <div class="topbar-status"><div class="tdot loading" id="statusDot"></div><span id="statusText">Carregando...</span></div>
+    <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none" onchange="importXLSX(this)">
+    <button class="btn btn-export" onclick="document.getElementById('importFile').click()" style="background:#475569">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 14V6M5 9l3-3 3 3M3 3h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Importar planilha
+    </button>
     <button class="btn btn-export" onclick="exportXLSX()">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Exportar XLSX
@@ -206,11 +210,14 @@
   </div>
 </div>
 
-<script>
-  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
-  if (!localStorage.getItem('usuario')) { window.location.href = 'login.html'; }
+<script type="module">
+  import { db } from './js/firebase-init.js';
+  import { exigirLogin } from './js/auth-guard.js';
+  import {
+    collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where,
+    orderBy, serverTimestamp, writeBatch
+  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
   var OBRA_ID = new URLSearchParams(window.location.search).get('obra');
   if (!OBRA_ID) { window.location.href = 'home.html'; }
   var lines = [];
@@ -230,15 +237,17 @@
     return              '<span class="badge badge-pend">Pendente</span>';
   }
 
+  document.getElementById('btnVoltar').href = 'painel.html?obra=' + OBRA_ID;
+  exigirLogin(function() { init(); });
+
   async function init() {
     setStatus('loading', 'Carregando...');
     try {
-      var { data: rows, error: e1 } = await db.from('visao_fisica')
-        .select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true });
-      if (e1) throw e1;
+      var snap = await getDocs(query(collection(db, 'visao_fisica'), where('obra_id', '==', OBRA_ID), orderBy('created_at', 'asc')));
 
-      lines = (rows||[]).map(function(r) {
-        return { id:r.id, elemento:r.elemento||'', fase:r.fase||'', data:r.data_concretagem||'', prev:+r.vol_previsto||0, real:+r.vol_realizado||0 };
+      lines = snap.docs.map(function(d) {
+        var r = d.data();
+        return { id:d.id, elemento:r.elemento||'', fase:r.fase||'', data:r.data_concretagem||'', prev:+r.vol_previsto||0, real:+r.vol_realizado||0 };
       });
       setStatus('ok', 'Conectado');
       render();
@@ -322,7 +331,7 @@
     updateTotals();
   }
 
-  function scheduleUpdate(id, field, value) {
+  window.scheduleUpdate = function scheduleUpdate(id, field, value) {
     var l = lines.find(function(x){return x.id===id;});
     if (!l) return;
     l[field] = (field==='prev'||field==='real') ? (+value||0) : (value||'');
@@ -333,40 +342,140 @@
     saveTimers[id] = setTimeout(async function() {
       var row = lines.find(function(x){return x.id===id;});
       if (!row) return;
-      var { error } = await db.from('visao_fisica').update({
-        elemento:           row.elemento||'',
-        fase:               row.fase||'',
-        data_concretagem:   row.data||null,
-        vol_previsto:       row.prev||0,
-        vol_realizado:      row.real||0,
-        updated_at:         new Date().toISOString()
-      }).eq('id', id);
-      setStatus(error?'err':'ok', error?'Erro ao salvar':'Salvo');
+      try {
+        await updateDoc(doc(db, 'visao_fisica', id), {
+          elemento:           row.elemento||'',
+          fase:               row.fase||'',
+          data_concretagem:   row.data||null,
+          vol_previsto:       row.prev||0,
+          vol_realizado:      row.real||0,
+          updated_at:         serverTimestamp()
+        });
+        setStatus('ok', 'Salvo');
+      } catch(e) {
+        setStatus('err', 'Erro ao salvar');
+      }
     }, 700);
   }
 
-  async function addBlank() {
+  window.addBlank = async function addBlank() {
     if (!OBRA_ID) { notify('Aguarde a conexão...'); return; }
     setStatus('saving', 'Salvando...');
-    var { data, error } = await db.from('visao_fisica').insert({
-      obra_id: OBRA_ID, elemento:'', fase:'', data_concretagem:null, vol_previsto:0, vol_realizado:0
-    }).select().single();
-    if (error) { setStatus('err', 'Erro ao criar'); return; }
-    lines.push({ id:data.id, elemento:'', fase:'', data:'', prev:0, real:0 });
-    render(data.id);
-    setStatus('ok', 'Salvo');
+    try {
+      var ref = await addDoc(collection(db, 'visao_fisica'), {
+        obra_id: OBRA_ID, elemento:'', fase:'', data_concretagem:null, vol_previsto:0, vol_realizado:0, created_at: serverTimestamp()
+      });
+      lines.push({ id:ref.id, elemento:'', fase:'', data:'', prev:0, real:0 });
+      render(ref.id);
+      setStatus('ok', 'Salvo');
+    } catch(e) {
+      setStatus('err', 'Erro ao criar');
+    }
   }
 
-  async function deleteLine(id) {
+  window.deleteLine = async function deleteLine(id) {
     if (!confirm('Remover este elemento?')) return;
-    var { error } = await db.from('visao_fisica').delete().eq('id', id);
-    if (error) { notify('Erro ao remover'); return; }
-    lines = lines.filter(function(l){return l.id!==id;});
-    render();
-    notify('Elemento removido');
+    try {
+      await deleteDoc(doc(db, 'visao_fisica', id));
+      lines = lines.filter(function(l){return l.id!==id;});
+      render();
+      notify('Elemento removido');
+    } catch(e) {
+      notify('Erro ao remover');
+    }
   }
 
-  function exportXLSX() {
+  /* ── Import XLSX ── */
+  function normHeader(s) { return String(s||'').toLowerCase().trim(); }
+  function pickCol(row, names) {
+    var keys = Object.keys(row);
+    for (var i=0;i<keys.length;i++) {
+      if (names.indexOf(normHeader(keys[i])) !== -1) return row[keys[i]];
+    }
+    return '';
+  }
+  function parseNumBR(v) {
+    if (typeof v === 'number') return v;
+    return parseFloat(String(v||'0').replace(/\./g,'').replace(',','.')) || 0;
+  }
+  function parseDataISO(v) {
+    if (!v) return null;
+    if (v instanceof Date) {
+      return v.getFullYear() + '-' + String(v.getMonth()+1).padStart(2,'0') + '-' + String(v.getDate()).padStart(2,'0');
+    }
+    var s = String(v).trim();
+    var br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (br) return br[3] + '-' + br[2].padStart(2,'0') + '-' + br[1].padStart(2,'0');
+    var iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) return iso[1] + '-' + iso[2].padStart(2,'0') + '-' + iso[3].padStart(2,'0');
+    return null;
+  }
+
+  window.importXLSX = function importXLSX(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var isCSV = /\.csv$/i.test(file.name);
+    var reader = new FileReader();
+    reader.onload = async function(e) {
+      try {
+        var wb = isCSV
+          ? XLSX.read(e.target.result, { type: 'string' })
+          : XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!rows.length) { notify('Planilha vazia'); return; }
+
+        var itens = rows.map(function(r) {
+          return {
+            elemento:         String(pickCol(r, ['elemento']) || '').trim(),
+            fase:             String(pickCol(r, ['fase','pavimento','pavimento / fase','pavimento/fase']) || '').trim(),
+            data_concretagem: parseDataISO(pickCol(r, ['data concretagem','data de concretagem','data'])),
+            vol_previsto:     parseNumBR(pickCol(r, ['vol previsto','vol. previsto','volume previsto','vol previsto (m3)','vol. previsto (m³)'])),
+            vol_realizado:    parseNumBR(pickCol(r, ['vol realizado','vol. realizado','volume realizado','vol realizado (m3)','vol. realizado (m³)']))
+          };
+        }).filter(function(it){ return it.elemento; });
+
+        if (!itens.length) {
+          notify('Nenhuma linha válida — confira as colunas (Elemento, Fase, Vol. Previsto)');
+          return;
+        }
+
+        setStatus('saving', 'Importando ' + itens.length + ' itens...');
+        var CHUNK = 400;
+        for (var i = 0; i < itens.length; i += CHUNK) {
+          var chunk = itens.slice(i, i + CHUNK);
+          var batch = writeBatch(db);
+          var chunkRefs = [];
+          chunk.forEach(function(it) {
+            var newRef = doc(collection(db, 'visao_fisica'));
+            chunkRefs.push({ ref: newRef, item: it });
+            batch.set(newRef, {
+              obra_id: OBRA_ID, elemento: it.elemento, fase: it.fase,
+              data_concretagem: it.data_concretagem, vol_previsto: it.vol_previsto,
+              vol_realizado: it.vol_realizado, created_at: serverTimestamp()
+            });
+          });
+          await batch.commit();
+          chunkRefs.forEach(function(x) {
+            lines.push({ id: x.ref.id, elemento: x.item.elemento, fase: x.item.fase, data: x.item.data_concretagem||'', prev: x.item.vol_previsto, real: x.item.vol_realizado });
+          });
+        }
+
+        render();
+        setStatus('ok', 'Importado');
+        notify(itens.length + ' itens importados');
+      } catch(err) {
+        setStatus('err', 'Erro ao importar');
+        notify('Erro ao importar: ' + err.message);
+      } finally {
+        input.value = '';
+      }
+    };
+    if (isCSV) reader.readAsText(file, 'UTF-8'); else reader.readAsArrayBuffer(file);
+  }
+
+  /* ── Export XLSX ── */
+  window.exportXLSX = function exportXLSX() {
     var data = [['Elemento','Fase','DataConcretagem','VolPrevisto_m3','VolRealizado_m3','PctExecucao']];
     lines.forEach(function(l) {
       var pct = l.prev>0 ? +(l.real/l.prev*100).toFixed(2) : 0;
@@ -389,9 +498,6 @@
     el.classList.add('show');
     setTimeout(function(){el.classList.remove('show');}, 2600);
   }
-
-  document.getElementById('btnVoltar').href = 'painel.html?obra=' + OBRA_ID;
-  init();
 </script>
 </body>
 </html>

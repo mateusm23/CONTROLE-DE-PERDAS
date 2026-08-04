@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// Regras do espaço de arquivos (Storage) — fotos de capa das obras.
+//
+// COMO USAR: Firebase Console → Storage → aba "Rules" → apaga o que
+// tiver lá → cola este arquivo inteiro → Publish.
+//
+// Fotos ficam com leitura pública (pra aparecerem nos cards da tela de
+// obras sem precisar de login pra exibir a imagem), mas só quem fez
+// login no site pode enviar/trocar uma foto.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /fotos/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

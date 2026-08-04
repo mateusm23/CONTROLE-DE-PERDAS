@@ -6,7 +6,6 @@
   <title>Relatório Concreto — Portal de Auditoria</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/main.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <style>
     .nav-back {
@@ -40,15 +39,15 @@
   <p id="ftrR">Auditoria de Concreto Usinado · Rev. 00</p>
 </div>
 
-<script>
+<script type="module">
+import { db } from './js/firebase-init.js';
+import { exigirLogin } from './js/auth-guard.js';
+import { collection, doc, getDoc, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
 window.TEXTS = {};
 window.DATA  = { parametros:{}, orcamento:[], cronograma:[], evolucaoB:[], concretoC:[] };
 window.OBRA  = {};
 
-var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-var db       = supabase.createClient(SUPA_URL, SUPA_KEY);
-if (!localStorage.getItem('usuario')) { window.location.href = 'login.html'; }
 var OBRA_ID  = new URLSearchParams(window.location.search).get('obra');
 if (!OBRA_ID) { window.location.href = 'home.html'; }
 
@@ -116,16 +115,16 @@ function loadModule(id) {
 
 async function loadData() {
   var results = await Promise.all([
-    db.from('obras').select('*').eq('id', OBRA_ID).single(),
-    db.from('orcamento').select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true }),
-    db.from('visao_fisica').select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true }),
-    db.from('apropriacao').select('*').eq('obra_id', OBRA_ID).order('data_nf', { ascending: true })
+    getDoc(doc(db, 'obras', OBRA_ID)),
+    getDocs(query(collection(db, 'orcamento'), where('obra_id', '==', OBRA_ID), orderBy('created_at', 'asc'))),
+    getDocs(query(collection(db, 'visao_fisica'), where('obra_id', '==', OBRA_ID), orderBy('created_at', 'asc'))),
+    getDocs(query(collection(db, 'apropriacao'), where('obra_id', '==', OBRA_ID), orderBy('data_nf', 'asc')))
   ]);
 
-  var obra    = results[0].data || {};
-  var orcRows = results[1].data || [];
-  var fisRows = results[2].data || [];
-  var aprRows = results[3].data || [];
+  var obra    = results[0].exists() ? results[0].data() : {};
+  var orcRows = results[1].docs.map(function(d){ return d.data(); });
+  var fisRows = results[2].docs.map(function(d){ return d.data(); });
+  var aprRows = results[3].docs.map(function(d){ return d.data(); });
 
   window.OBRA = obra;
 
@@ -246,13 +245,20 @@ function applyObraData() {
   }
 }
 
-loadTexts()
-  .then(loadData)
-  .then(function() { return Promise.all(['a', 'b', 'c'].map(loadModule)); })
-  .then(function() {
-    applyTexts();
-    applyObraData();
-  });
+exigirLogin(function() {
+  loadTexts()
+    .then(loadData)
+    .then(function() { return Promise.all(['a', 'b', 'c'].map(loadModule)); })
+    .then(function() {
+      applyTexts();
+      applyObraData();
+    })
+    .catch(function(err) {
+      document.querySelector('.wrap').innerHTML =
+        '<div style="padding:14px 18px;border:1px solid #fca5a5;background:#fef2f2;border-radius:5px;margin:16px;font-size:12px;color:#c0392b;word-break:break-all">' +
+        '<strong>Erro ao carregar o relatório:</strong><br>' + err.message + '</div>';
+    });
+});
 </script>
 
 </body>

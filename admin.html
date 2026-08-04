@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gerenciamento de Acessos · Portal de Auditoria</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 13px; min-height: 100vh; display: flex; flex-direction: column; }
@@ -254,39 +253,45 @@
 
 </div>
 
-<script>
-  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
-
-  // ── Auth check ──
-  var sessao = JSON.parse(localStorage.getItem('usuario') || 'null');
-  if (!sessao) { window.location.href = 'login.html'; }
-  if (sessao && sessao.perfil !== 'master') { window.location.href = 'home.html'; }
-  document.getElementById('topUser').textContent = sessao ? sessao.nome : '';
+<script type="module">
+  import { db } from './js/firebase-init.js';
+  import { exigirLogin } from './js/auth-guard.js';
+  import {
+    collection, doc, getDocs, addDoc, deleteDoc, query, orderBy, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
   var usuarios = [];
   var obras    = [];
-  var acessosMap = {}; // { usuario_id: Set<obra_id> }
+  var acessosMap = {}; // { usuario_id: Map<obra_id, acesso_doc_id> }
   var selectedUserId = null;
+
+  // ── Auth check (só master) ──
+  exigirLogin(function(sessao) {
+    if (sessao.perfil !== 'master') { window.location.href = 'home.html'; return; }
+    document.getElementById('topUser').textContent = sessao.nome;
+    init();
+  });
 
   // ── Init ──
   async function init() {
     try {
       var [r1, r2, r3] = await Promise.all([
-        db.from('usuarios').select('id, nome, perfil').order('nome'),
-        db.from('obras').select('id, nome, codigo, status, localizacao').order('nome'),
-        db.from('acessos').select('usuario_id, obra_id')
+        getDocs(query(collection(db, 'usuarios'), orderBy('nome'))),
+        getDocs(query(collection(db, 'obras'), orderBy('nome'))),
+        getDocs(collection(db, 'acessos'))
       ]);
 
-      usuarios = (r1.data || []).filter(function(u) { return u.perfil !== 'master'; });
-      obras    = r2.data || [];
+      usuarios = r1.docs
+        .map(function(d){ return Object.assign({ id: d.id }, d.data()); })
+        .filter(function(u) { return u.perfil !== 'master'; });
+      obras = r2.docs.map(function(d){ return Object.assign({ id: d.id }, d.data()); });
 
       // Montar mapa de acessos
       acessosMap = {};
-      usuarios.forEach(function(u) { acessosMap[u.id] = new Set(); });
-      (r3.data || []).forEach(function(a) {
-        if (acessosMap[a.usuario_id]) acessosMap[a.usuario_id].add(a.obra_id);
+      usuarios.forEach(function(u) { acessosMap[u.id] = new Map(); });
+      r3.docs.forEach(function(d) {
+        var a = d.data();
+        if (acessosMap[a.usuario_id]) acessosMap[a.usuario_id].set(a.obra_id, d.id);
       });
 
       renderSidebar();
@@ -322,7 +327,7 @@
   }
 
   // ── Selecionar usuário ──
-  function selectUser(userId) {
+  window.selectUser = function selectUser(userId) {
     selectedUserId = userId;
     var user = usuarios.find(function(u){ return u.id === userId; });
     if (!user) return;
@@ -390,18 +395,17 @@
   }
 
   // ── Toggle acesso ──
-  async function toggleAcesso(userId, obraId, checkbox) {
+  window.toggleAcesso = async function toggleAcesso(userId, obraId, checkbox) {
     checkbox.disabled = true;
 
     try {
       if (checkbox.checked) {
-        var { error } = await db.from('acessos').insert({ usuario_id: userId, obra_id: obraId });
-        if (error) throw error;
-        acessosMap[userId].add(obraId);
+        var ref = await addDoc(collection(db, 'acessos'), { usuario_id: userId, obra_id: obraId, created_at: serverTimestamp() });
+        acessosMap[userId].set(obraId, ref.id);
         notify('Acesso liberado');
       } else {
-        var { error } = await db.from('acessos').delete().eq('usuario_id', userId).eq('obra_id', obraId);
-        if (error) throw error;
+        var acessoDocId = acessosMap[userId].get(obraId);
+        if (acessoDocId) await deleteDoc(doc(db, 'acessos', acessoDocId));
         acessosMap[userId].delete(obraId);
         notify('Acesso removido');
       }
@@ -432,8 +436,6 @@
     el.textContent = msg; el.classList.add('show');
     setTimeout(function(){ el.classList.remove('show'); }, 2200);
   }
-
-  init();
 </script>
 </body>
 </html>

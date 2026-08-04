@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Criar Usuário · Portal de Auditoria</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -209,8 +208,15 @@
     </div>
     <div class="card-body">
       <div class="field">
-        <label>Nome de usuário *</label>
-        <input type="text" id="fNome" placeholder="Ex: João Silva" autocomplete="username"
+        <label>Nome completo *</label>
+        <input type="text" id="fNome" placeholder="Ex: João Silva" autocomplete="name"
+          oninput="clearMsg()"
+          onkeydown="if(event.key==='Enter') document.getElementById('fEmail').focus()">
+      </div>
+
+      <div class="field">
+        <label>E-mail *</label>
+        <input type="email" id="fEmail" placeholder="seu@email.com" autocomplete="email"
           oninput="clearMsg()"
           onkeydown="if(event.key==='Enter') document.getElementById('fSenha').focus()">
       </div>
@@ -248,12 +254,12 @@
   <div class="copy">Trinus Capital · Engenharia de Custos &amp; BI · 2026</div>
 </div>
 
-<script>
-  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+<script type="module">
+  import { auth, db } from './js/firebase-init.js';
+  import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+  import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-  function checkRules() {
+  window.checkRules = function checkRules() {
     var senha = document.getElementById('fSenha').value;
     toggleRule('ruleLen', senha.length >= 6);
   }
@@ -263,7 +269,7 @@
     if (ok) el.classList.add('ok'); else el.classList.remove('ok');
   }
 
-  function clearMsg() {
+  window.clearMsg = function clearMsg() {
     document.getElementById('errMsg').classList.remove('show');
     document.getElementById('okMsg').classList.remove('show');
     document.getElementById('fNome').classList.remove('err');
@@ -283,14 +289,16 @@
     document.getElementById('errMsg').classList.remove('show');
   }
 
-  async function cadastrar() {
+  window.cadastrar = async function cadastrar() {
     clearMsg();
 
     var nome  = document.getElementById('fNome').value.trim();
+    var email = document.getElementById('fEmail').value.trim();
     var senha = document.getElementById('fSenha').value;
     var conf  = document.getElementById('fConf').value;
 
     if (!nome)  { document.getElementById('fNome').focus(); return; }
+    if (!email) { document.getElementById('fEmail').focus(); return; }
     if (!senha) { document.getElementById('fSenha').focus(); return; }
     if (senha.length < 6) { showError('A senha precisa ter ao menos 6 caracteres.'); return; }
     if (senha !== conf)   { showError('As senhas não coincidem.'); document.getElementById('fConf').focus(); return; }
@@ -300,32 +308,33 @@
     btn.disabled = true;
 
     try {
-      var { data, error } = await db
-        .from('usuarios')
-        .insert({ nome: nome, senha: senha })
-        .select('id, nome')
-        .single();
+      var cred = await createUserWithEmailAndPassword(auth, email, senha);
+      await setDoc(doc(db, 'usuarios', cred.user.uid), {
+        nome: nome,
+        email: email,
+        perfil: 'usuario',
+        created_at: serverTimestamp()
+      });
 
-      if (error) {
-        if (error.code === '23505') {
-          showError('Este nome de usuário já está em uso. Escolha outro.');
-          document.getElementById('fNome').classList.add('err');
-          document.getElementById('fNome').focus();
-        } else {
-          showError('Erro ao criar usuário: ' + error.message);
-        }
-        return;
-      }
-
-      showOk('Usuário "' + data.nome + '" criado com sucesso! Redirecionando...');
+      showOk('Usuário "' + nome + '" criado com sucesso! Redirecionando...');
       document.getElementById('fNome').value  = '';
+      document.getElementById('fEmail').value = '';
       document.getElementById('fSenha').value = '';
       document.getElementById('fConf').value  = '';
 
       setTimeout(function() { window.location.href = 'login.html'; }, 1800);
 
     } catch(e) {
-      showError('Erro de conexão. Tente novamente.');
+      if (e.code === 'auth/email-already-in-use') {
+        showError('Este e-mail já está em uso. Escolha outro ou faça login.');
+        document.getElementById('fEmail').classList.add('err');
+        document.getElementById('fEmail').focus();
+      } else if (e.code === 'auth/invalid-email') {
+        showError('E-mail inválido.');
+        document.getElementById('fEmail').focus();
+      } else {
+        showError('Erro ao criar usuário: ' + e.message);
+      }
     } finally {
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13 4L6.5 11 3 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Criar usuário';
       btn.disabled = false;

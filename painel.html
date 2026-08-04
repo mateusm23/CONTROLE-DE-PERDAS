@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel · Portal de Auditoria</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 13px; min-height: 100vh; }
@@ -46,6 +45,19 @@
     .kpi-val.blue  { color: #60a5fa; }
     .kpi-val.green { color: #34d399; }
     .kpi-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #4a6080; }
+
+    /* ── Análise (KPI cards) ── */
+    .kc-strip { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 30px; }
+    .kc-card { flex: 1; min-width: 170px; background: #fff; border: 1px solid #e2e8f0; border-radius: 7px; padding: 14px 16px; display: flex; flex-direction: column; }
+    .kc-lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: .7px; font-weight: 700; margin-bottom: 8px; }
+    .kc-main { font-size: 19px; font-weight: 700; color: #1b2a4a; line-height: 1; margin-bottom: 10px; }
+    .kc-main.green { color: #16a34a; } .kc-main.amber { color: #d97706; } .kc-main.red { color: #dc2626; }
+    .kc-row { display: flex; gap: 12px; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: auto; }
+    .kc-item { flex: 1; }
+    .kc-item-lbl { font-size: 9px; color: #94a3b8; margin-bottom: 2px; }
+    .kc-item-val { font-size: 11px; font-weight: 700; color: #1b2a4a; }
+    .kc-item-val.green { color: #16a34a; } .kc-item-val.amber { color: #d97706; } .kc-item-val.red { color: #dc2626; }
+    .kc-empty { font-size: 11px; color: #94a3b8; padding: 14px 16px; background: #fff; border: 1px dashed #e2e8f0; border-radius: 7px; margin-bottom: 30px; }
 
     /* ── Modules grid ── */
     .main { padding: 28px 32px; }
@@ -126,6 +138,11 @@
   </div>
 </div>
 
+<div class="main" style="padding-bottom: 0">
+  <div class="section-label">Perda de Concreto &amp; Projeção de Custo</div>
+  <div id="kcStrip"></div>
+</div>
+
 <div class="main">
   <div class="section-label">Módulos</div>
   <div class="grid">
@@ -188,12 +205,11 @@
   </div>
 </div>
 
-<script>
-  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+<script type="module">
+  import { db } from './js/firebase-init.js';
+  import { exigirLogin } from './js/auth-guard.js';
+  import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-  if (!localStorage.getItem('usuario')) { window.location.href = 'login.html'; }
   var obraId = new URLSearchParams(window.location.search).get('obra');
   if (!obraId) { window.location.href = 'home.html'; }
 
@@ -203,6 +219,64 @@
     if (n >= 1000)    return 'R$ '+Math.round(n/1000)+'K';
     return 'R$ '+Math.round(n).toLocaleString('pt-BR');
   }
+  function fmtBRLFull(n) { return 'R$ '+Math.round(n||0).toLocaleString('pt-BR'); }
+  function fmtNum(n) { return (n||0).toLocaleString('pt-BR', {maximumFractionDigits:1}); }
+  function sgn(n) { return (n>=0?'+':'') + n.toFixed(1).replace('.',',') + '%'; }
+
+  // Perda de Concreto & Projeção de Custo — só totais da obra, sem estimativa por pavimento
+  function renderAnalise(orc, fis, apr, valOrc, valApr) {
+    var el = document.getElementById('kcStrip');
+
+    var qtdOrc = orc.reduce(function(s,r){return s+(+r.qtd_orc||0);},0);
+    var qtdMed = fis.reduce(function(s,r){return s+(+r.vol_realizado||0);},0);
+    var qtdApr = apr.reduce(function(s,r){return s+(+r.volume||0);},0);
+
+    if (!qtdOrc || !qtdMed || !qtdApr) {
+      el.outerHTML = '<div class="kc-empty" id="kcStrip">Ainda não há dados suficientes em Orçamento, Visão Física e Apropriação pra calcular a perda e a projeção de custo desta obra.</div>';
+      return;
+    }
+
+    var vuOrc = valOrc / qtdOrc;
+    var vuApr = valApr / qtdApr;
+    var pctFisico = qtdMed / qtdOrc;
+    var valMedOrcado = qtdMed * vuOrc;
+
+    var perdaQtd    = (qtdApr - qtdMed) / qtdMed;
+    var desvioPreco = (vuApr - vuOrc) / vuOrc;
+    var desvioTotal = valMedOrcado > 0 ? (valApr - valMedOrcado) / valMedOrcado : 0;
+    var eac         = valApr / pctFisico;
+    var deltaOrc    = eac - valOrc;
+
+    var cards = [
+      { lbl: 'Total Orçado', main: fmtBRL(valOrc), mainCls: '',
+        s1lbl: 'Qtd Orçada', s1: fmtNum(qtdOrc) + ' m³',
+        s2lbl: 'Vlr. Unt.', s2: fmtBRLFull(vuOrc) + '/m³' },
+      { lbl: 'Total Medido (Físico)', main: (pctFisico*100).toFixed(1).replace('.',',') + '%', mainCls: pctFisico < 0.3 ? 'amber' : 'green',
+        s1lbl: 'Qtd Medida', s1: fmtNum(qtdMed) + ' m³',
+        s2lbl: 'Valor a Preço Orçado', s2: fmtBRL(valMedOrcado) },
+      { lbl: 'Total Apropriado', main: fmtBRL(valApr), mainCls: 'amber',
+        s1lbl: 'Qtd Apropriada', s1: fmtNum(qtdApr) + ' m³',
+        s2lbl: '% do Orçado', s2: (valApr/valOrc*100).toFixed(1).replace('.',',') + '%' },
+      { lbl: 'Índices de Desvio', main: sgn(desvioTotal*100), mainCls: desvioTotal > 0 ? 'red' : 'green',
+        s1lbl: 'Perda de Qtd.', s1: sgn(perdaQtd*100),
+        s2lbl: 'Desvio de Preço', s2: sgn(desvioPreco*100) },
+      { lbl: 'Tendência de Custo (EAC)', main: fmtBRL(eac), mainCls: eac > valOrc ? 'red' : 'green',
+        s1lbl: 'Vlr. Unt. Atual', s1: fmtBRLFull(vuApr) + '/m³',
+        s2lbl: 'Δ vs Orçado', s2: (deltaOrc>=0?'+':'') + fmtBRL(deltaOrc) }
+    ];
+
+    el.className = 'kc-strip';
+    el.innerHTML = cards.map(function(k) {
+      return '<div class="kc-card">' +
+        '<div class="kc-lbl">' + k.lbl + '</div>' +
+        '<div class="kc-main ' + k.mainCls + '">' + k.main + '</div>' +
+        '<div class="kc-row">' +
+          '<div class="kc-item"><div class="kc-item-lbl">' + k.s1lbl + '</div><div class="kc-item-val">' + k.s1 + '</div></div>' +
+          '<div class="kc-item"><div class="kc-item-lbl">' + k.s2lbl + '</div><div class="kc-item-val">' + k.s2 + '</div></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
 
   // Definir links dos módulos com obra_id
   document.getElementById('linkOrc').href = 'orcamento.html?obra=' + obraId;
@@ -210,10 +284,13 @@
   document.getElementById('linkApr').href = 'apropriacao.html?obra=' + obraId;
   document.getElementById('linkRel').href = 'relatorio.html?obra=' + obraId;
 
+  exigirLogin(function() { init(); });
+
   async function init() {
     try {
-      var { data: obra } = await db.from('obras').select('*').eq('id', obraId).single();
-      if (!obra) { window.location.href = 'home.html'; return; }
+      var obraSnap = await getDoc(doc(db, 'obras', obraId));
+      if (!obraSnap.exists()) { window.location.href = 'home.html'; return; }
+      var obra = obraSnap.data();
 
       document.title = obra.nome + ' · Portal de Auditoria';
       document.getElementById('topTitle').textContent  = obra.nome;
@@ -227,19 +304,21 @@
       }
 
       var [r1, r2, r3] = await Promise.all([
-        db.from('orcamento').select('qtd_orc,rs_unitario').eq('obra_id', obraId),
-        db.from('visao_fisica').select('vol_previsto,vol_realizado').eq('obra_id', obraId),
-        db.from('apropriacao').select('volume,rs_unitario').eq('obra_id', obraId)
+        getDocs(query(collection(db, 'orcamento'), where('obra_id', '==', obraId))),
+        getDocs(query(collection(db, 'visao_fisica'), where('obra_id', '==', obraId))),
+        getDocs(query(collection(db, 'apropriacao'), where('obra_id', '==', obraId)))
       ]);
 
-      var orc    = r1.data || [];
-      var fis    = r2.data || [];
-      var apr    = r3.data || [];
+      var orc    = r1.docs.map(function(d){ return d.data(); });
+      var fis    = r2.docs.map(function(d){ return d.data(); });
+      var apr    = r3.docs.map(function(d){ return d.data(); });
       var orcT   = orc.reduce(function(s,r){return s+(+r.qtd_orc||0)*(+r.rs_unitario||0);},0);
       var fisPrev= fis.reduce(function(s,r){return s+(+r.vol_previsto||0);},0);
       var fisReal= fis.reduce(function(s,r){return s+(+r.vol_realizado||0);},0);
       var fisPct = fisPrev>0 ? Math.round(fisReal/fisPrev*100) : 0;
       var aprT   = apr.reduce(function(s,r){return s+(+r.volume||0)*(+r.rs_unitario||0);},0);
+
+      renderAnalise(orc, fis, apr, orcT, aprT);
 
       document.getElementById('kpiOrc').textContent   = fmtBRL(orcT);
       document.getElementById('kpiPct').textContent   = fisPct + '%';
@@ -255,8 +334,6 @@
       document.getElementById('obraNome').textContent = 'Erro ao carregar';
     }
   }
-
-  init();
 </script>
 </body>
 </html>

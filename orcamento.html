@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Orçamento · Portal de Auditoria de Concreto</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -141,6 +140,11 @@
   </div>
   <div class="topbar-right">
     <div class="topbar-status"><div class="tdot loading" id="statusDot"></div><span id="statusText">Carregando...</span></div>
+    <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none" onchange="importXLSX(this)">
+    <button class="btn btn-export" onclick="document.getElementById('importFile').click()" style="background:#475569">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 14V6M5 9l3-3 3 3M3 3h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Importar planilha
+    </button>
     <button class="btn btn-export" onclick="exportXLSX()">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Exportar XLSX
@@ -199,11 +203,14 @@
   </div>
 </div>
 
-<script>
-  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
-  if (!localStorage.getItem('usuario')) { window.location.href = 'login.html'; }
+<script type="module">
+  import { db } from './js/firebase-init.js';
+  import { exigirLogin } from './js/auth-guard.js';
+  import {
+    collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where,
+    orderBy, serverTimestamp, writeBatch
+  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
   var OBRA_ID = new URLSearchParams(window.location.search).get('obra');
   if (!OBRA_ID) { window.location.href = 'home.html'; }
   var lines = [];
@@ -220,16 +227,18 @@
   function fmtBRL(n)   { return n ? 'R$ ' + Math.round(+n).toLocaleString('pt-BR') : 'R$ 0'; }
   function esc(s)      { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+  document.getElementById('btnVoltar').href = 'painel.html?obra=' + OBRA_ID;
+  exigirLogin(function() { init(); });
+
   /* ── Init ── */
   async function init() {
     setStatus('loading', 'Carregando...');
     try {
-      var { data: rows, error: e1 } = await db.from('orcamento')
-        .select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true });
-      if (e1) throw e1;
+      var snap = await getDocs(query(collection(db, 'orcamento'), where('obra_id', '==', OBRA_ID), orderBy('created_at', 'asc')));
 
-      lines = (rows||[]).map(function(r) {
-        return { id:r.id, desc:r.descricao||'', un:r.unidade||'m³', qtd:+r.qtd_orc||0, vu:+r.rs_unitario||0 };
+      lines = snap.docs.map(function(d) {
+        var r = d.data();
+        return { id:d.id, desc:r.descricao||'', un:r.unidade||'m³', qtd:+r.qtd_orc||0, vu:+r.rs_unitario||0 };
       });
       setStatus('ok', 'Conectado');
       render();
@@ -312,7 +321,7 @@
   }
 
   /* ── CRUD ── */
-  function scheduleUpdate(id, field, value) {
+  window.scheduleUpdate = function scheduleUpdate(id, field, value) {
     var l = lines.find(function(x){return x.id===id;});
     if (!l) return;
     l[field] = (field==='qtd'||field==='vu') ? (+value||0) : value;
@@ -323,40 +332,127 @@
     saveTimers[id] = setTimeout(async function() {
       var row = lines.find(function(x){return x.id===id;});
       if (!row) return;
-      var { error } = await db.from('orcamento').update({
-        descricao:   row.desc||'',
-        unidade:     row.un||'m³',
-        qtd_orc:     row.qtd||0,
-        rs_unitario: row.vu||0,
-        updated_at:  new Date().toISOString()
-      }).eq('id', id);
-      setStatus(error?'err':'ok', error?'Erro ao salvar':'Salvo');
+      try {
+        await updateDoc(doc(db, 'orcamento', id), {
+          descricao:   row.desc||'',
+          unidade:     row.un||'m³',
+          qtd_orc:     row.qtd||0,
+          rs_unitario: row.vu||0,
+          updated_at:  serverTimestamp()
+        });
+        setStatus('ok', 'Salvo');
+      } catch(e) {
+        setStatus('err', 'Erro ao salvar');
+      }
     }, 700);
   }
 
-  async function addBlank() {
+  window.addBlank = async function addBlank() {
     if (!OBRA_ID) { notify('Aguarde a conexão...'); return; }
     setStatus('saving', 'Salvando...');
-    var { data, error } = await db.from('orcamento').insert({
-      obra_id: OBRA_ID, descricao:'', unidade:'m³', qtd_orc:0, rs_unitario:0
-    }).select().single();
-    if (error) { setStatus('err', 'Erro ao criar'); return; }
-    lines.push({ id:data.id, desc:'', un:'m³', qtd:0, vu:0 });
-    render(data.id);
-    setStatus('ok', 'Salvo');
+    try {
+      var ref = await addDoc(collection(db, 'orcamento'), {
+        obra_id: OBRA_ID, descricao:'', unidade:'m³', qtd_orc:0, rs_unitario:0, created_at: serverTimestamp()
+      });
+      lines.push({ id:ref.id, desc:'', un:'m³', qtd:0, vu:0 });
+      render(ref.id);
+      setStatus('ok', 'Salvo');
+    } catch(e) {
+      setStatus('err', 'Erro ao criar');
+    }
   }
 
-  async function deleteLine(id) {
+  window.deleteLine = async function deleteLine(id) {
     if (!confirm('Remover esta linha?')) return;
-    var { error } = await db.from('orcamento').delete().eq('id', id);
-    if (error) { notify('Erro ao remover'); return; }
-    lines = lines.filter(function(l){return l.id!==id;});
-    render();
-    notify('Linha removida');
+    try {
+      await deleteDoc(doc(db, 'orcamento', id));
+      lines = lines.filter(function(l){return l.id!==id;});
+      render();
+      notify('Linha removida');
+    } catch(e) {
+      notify('Erro ao remover');
+    }
+  }
+
+  /* ── Import XLSX ── */
+  function normHeader(s) {
+    return String(s||'').toLowerCase().trim();
+  }
+  function pickCol(row, names) {
+    var keys = Object.keys(row);
+    for (var i=0;i<keys.length;i++) {
+      if (names.indexOf(normHeader(keys[i])) !== -1) return row[keys[i]];
+    }
+    return '';
+  }
+  function parseNumBR(v) {
+    if (typeof v === 'number') return v;
+    return parseFloat(String(v||'0').replace(/\./g,'').replace(',','.')) || 0;
+  }
+
+  window.importXLSX = function importXLSX(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var isCSV = /\.csv$/i.test(file.name);
+    var reader = new FileReader();
+    reader.onload = async function(e) {
+      try {
+        var wb = isCSV
+          ? XLSX.read(e.target.result, { type: 'string' })
+          : XLSX.read(e.target.result, { type: 'array' });
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!rows.length) { notify('Planilha vazia'); return; }
+
+        var itens = rows.map(function(r) {
+          return {
+            descricao:   String(pickCol(r, ['descricao','descrição','descricao/especificacao','descrição/especificação','item','servico','serviço']) || '').trim(),
+            unidade:     String(pickCol(r, ['unidade','un']) || '').trim() || 'm³',
+            qtd_orc:     parseNumBR(pickCol(r, ['quantidade','qtd','qtd orcada','qtd orçada'])),
+            rs_unitario: parseNumBR(pickCol(r, ['valor unitario','valor unitário','vlr unt','r$/un','r$ un','valor unt']))
+          };
+        }).filter(function(it){ return it.descricao; });
+
+        if (!itens.length) {
+          notify('Nenhuma linha válida — confira as colunas (Descrição, Unidade, Quantidade, Valor Unitário)');
+          return;
+        }
+
+        setStatus('saving', 'Importando ' + itens.length + ' itens...');
+        var CHUNK = 400;
+        for (var i = 0; i < itens.length; i += CHUNK) {
+          var chunk = itens.slice(i, i + CHUNK);
+          var batch = writeBatch(db);
+          var chunkRefs = [];
+          chunk.forEach(function(it) {
+            var newRef = doc(collection(db, 'orcamento'));
+            chunkRefs.push({ ref: newRef, item: it });
+            batch.set(newRef, {
+              obra_id: OBRA_ID, descricao: it.descricao, unidade: it.unidade,
+              qtd_orc: it.qtd_orc, rs_unitario: it.rs_unitario, created_at: serverTimestamp()
+            });
+          });
+          await batch.commit();
+          chunkRefs.forEach(function(x) {
+            lines.push({ id: x.ref.id, desc: x.item.descricao, un: x.item.unidade, qtd: x.item.qtd_orc, vu: x.item.rs_unitario });
+          });
+        }
+
+        render();
+        setStatus('ok', 'Importado');
+        notify(itens.length + ' itens importados');
+      } catch(err) {
+        setStatus('err', 'Erro ao importar');
+        notify('Erro ao importar: ' + err.message);
+      } finally {
+        input.value = '';
+      }
+    };
+    if (isCSV) reader.readAsText(file, 'UTF-8'); else reader.readAsArrayBuffer(file);
   }
 
   /* ── Export XLSX ── */
-  function exportXLSX() {
+  window.exportXLSX = function exportXLSX() {
     var total = calcTotal();
     var data  = [['Grupo','Unidade','QtdOrc','RsUnitario','RsTotal','PctTotal','PesoGrupo']];
     lines.forEach(function(l) {
@@ -382,9 +478,6 @@
     el.classList.add('show');
     setTimeout(function(){el.classList.remove('show');}, 2600);
   }
-
-  document.getElementById('btnVoltar').href = 'painel.html?obra=' + OBRA_ID;
-  init();
 </script>
 </body>
 </html>

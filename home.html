@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Portal de Auditoria · Concreto</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 13px; min-height: 100vh; }
@@ -266,23 +265,18 @@
   </div>
 </div>
 
-<script>
-  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
+<script type="module">
+  import { db, storage } from './js/firebase-init.js';
+  import { exigirLogin, sair } from './js/auth-guard.js';
+  import {
+    collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where,
+    orderBy, documentId, serverTimestamp, writeBatch
+  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
-  var _sessao = JSON.parse(localStorage.getItem('usuario') || 'null');
-  if (!_sessao) { window.location.href = 'login.html'; }
-  document.getElementById('topUserName').textContent = _sessao ? _sessao.nome : '';
-  if (_sessao && _sessao.perfil === 'master') {
-    document.getElementById('btnAdmin').style.display = '';
-  } else {
-    // Usuário normal não cria obras
-    var _btnNova = document.querySelector('.btn.btn-ghost[onclick="openModal()"]');
-    if (_btnNova) _btnNova.style.display = 'none';
-  }
-  function logout() { localStorage.removeItem('usuario'); window.location.href = 'login.html'; }
+  window.logout = sair;
 
+  var _sessao = null;
   var obras  = [];
   var stats  = {};
   var editId = null;
@@ -296,43 +290,57 @@
     return 'R$' + Math.round(n).toLocaleString('pt-BR');
   }
 
-  /* ── Init ── */
+  /* ── Login + init ── */
+  exigirLogin(function(sessao) {
+    _sessao = sessao;
+    document.getElementById('topUserName').textContent = _sessao.nome;
+    if (_sessao.perfil === 'master') {
+      document.getElementById('btnAdmin').style.display = '';
+    } else {
+      // Usuário normal não cria obras
+      var _btnNova = document.querySelector('.btn.btn-ghost[onclick="openModal()"]');
+      if (_btnNova) _btnNova.style.display = 'none';
+    }
+    init();
+  });
+
   async function init() {
     setConn('loading');
     try {
       var obrasRaw;
       if (_sessao.perfil === 'master') {
-        var { data, error: e0 } = await db.from('obras').select('*').order('created_at', { ascending: true });
-        if (e0) throw e0;
-        obrasRaw = data || [];
+        var snap = await getDocs(query(collection(db, 'obras'), orderBy('created_at', 'asc')));
+        obrasRaw = snap.docs.map(function(d){ return Object.assign({ id: d.id }, d.data()); });
       } else {
-        // Usuário normal: busca só as obras liberadas na tabela acessos
-        var { data: acessos, error: ea } = await db.from('acessos').select('obra_id').eq('usuario_id', _sessao.id);
-        if (ea) throw ea;
-        var ids_liberados = (acessos || []).map(function(a){ return a.obra_id; });
+        // Usuário normal: busca só as obras liberadas na coleção acessos
+        var accSnap = await getDocs(query(collection(db, 'acessos'), where('usuario_id', '==', _sessao.uid)));
+        var ids_liberados = accSnap.docs.map(function(d){ return d.data().obra_id; });
         if (!ids_liberados.length) {
           obrasRaw = [];
         } else {
-          var { data, error: e1 } = await db.from('obras').select('*').in('id', ids_liberados).order('created_at', { ascending: true });
-          if (e1) throw e1;
-          obrasRaw = data || [];
+          var oSnap = await getDocs(query(collection(db, 'obras'), where(documentId(), 'in', ids_liberados)));
+          obrasRaw = oSnap.docs.map(function(d){ return Object.assign({ id: d.id }, d.data()); });
+          obrasRaw.sort(function(a,b){ return ((a.created_at&&a.created_at.seconds)||0) - ((b.created_at&&b.created_at.seconds)||0); });
         }
       }
       obras = obrasRaw;
 
       // Carregar stats de todas as obras em paralelo
       var ids = obras.map(function(o){ return o.id; });
+      stats = {};
       if (ids.length) {
         var [r1, r2, r3] = await Promise.all([
-          db.from('orcamento').select('obra_id, qtd_orc, rs_unitario').in('obra_id', ids),
-          db.from('visao_fisica').select('obra_id, vol_previsto, vol_realizado').in('obra_id', ids),
-          db.from('apropriacao').select('obra_id').in('obra_id', ids)
+          getDocs(query(collection(db, 'orcamento'), where('obra_id', 'in', ids))),
+          getDocs(query(collection(db, 'visao_fisica'), where('obra_id', 'in', ids))),
+          getDocs(query(collection(db, 'apropriacao'), where('obra_id', 'in', ids)))
         ]);
-        stats = {};
+        var orcAll = r1.docs.map(function(d){ return d.data(); });
+        var fisAll = r2.docs.map(function(d){ return d.data(); });
+        var aprAll = r3.docs.map(function(d){ return d.data(); });
         obras.forEach(function(o) {
-          var orc = (r1.data||[]).filter(function(r){return r.obra_id===o.id;});
-          var fis = (r2.data||[]).filter(function(r){return r.obra_id===o.id;});
-          var apr = (r3.data||[]).filter(function(r){return r.obra_id===o.id;});
+          var orc = orcAll.filter(function(r){return r.obra_id===o.id;});
+          var fis = fisAll.filter(function(r){return r.obra_id===o.id;});
+          var apr = aprAll.filter(function(r){return r.obra_id===o.id;});
           var orcT  = orc.reduce(function(s,r){return s+(+r.qtd_orc||0)*(+r.rs_unitario||0);},0);
           var prev  = fis.reduce(function(s,r){return s+(+r.vol_previsto||0);},0);
           var real  = fis.reduce(function(s,r){return s+(+r.vol_realizado||0);},0);
@@ -394,7 +402,7 @@
   }
 
   /* ── Modal ── */
-  function openModal(id) {
+  window.openModal = function openModal(id) {
     editId = id || null;
     newPhotoFile = null;
     document.getElementById('modalTitle').textContent = id ? 'Editar obra' : 'Nova obra';
@@ -417,12 +425,12 @@
     document.getElementById('fNome').focus();
   }
 
-  function closeModal() {
+  window.closeModal = function closeModal() {
     document.getElementById('overlay').classList.remove('open');
     document.getElementById('photoInput').value = '';
   }
 
-  function previewPhoto(input) {
+  window.previewPhoto = function previewPhoto(input) {
     if (!input.files || !input.files[0]) return;
     newPhotoFile = input.files[0];
     var reader = new FileReader();
@@ -434,7 +442,20 @@
     reader.readAsDataURL(newPhotoFile);
   }
 
-  async function saveObra() {
+  async function enviarFoto(obraId, file) {
+    try {
+      var ext = file.name.split('.').pop();
+      var storageRef = ref(storage, 'fotos/' + obraId + '/capa.' + ext);
+      await uploadBytes(storageRef, file);
+      return await getDownloadURL(storageRef);
+    } catch(e) {
+      console.error('Upload foto erro:', e.message);
+      notify('Atenção: foto não enviada — ' + e.message);
+      return undefined;
+    }
+  }
+
+  window.saveObra = async function saveObra() {
     var nome = document.getElementById('fNome').value.trim();
     if (!nome) { document.getElementById('fNome').focus(); return; }
 
@@ -452,40 +473,25 @@
         data_inicio: document.getElementById('fData').value.trim()
       };
 
-      // Upload foto se selecionada
-      if (newPhotoFile) {
-        var obraId = editId || 'temp_' + Date.now();
-        var ext    = newPhotoFile.name.split('.').pop();
-        var path   = obraId + '/capa.' + ext;
-        var { error: upErr } = await db.storage.from('fotos').upload(path, newPhotoFile, { upsert: true });
-        if (upErr) {
-          console.error('Upload foto erro:', upErr.message);
-          notify('Atenção: foto não enviada — ' + upErr.message);
-        } else {
-          var { data: urlData } = db.storage.from('fotos').getPublicUrl(path);
-          payload.foto_url = urlData.publicUrl;
-        }
-      }
-
       if (editId) {
-        var { error } = await db.from('obras').update(payload).eq('id', editId);
-        if (error) throw error;
+        if (newPhotoFile) {
+          var url = await enviarFoto(editId, newPhotoFile);
+          if (url) payload.foto_url = url;
+        }
+        await updateDoc(doc(db, 'obras', editId), payload);
         var idx = obras.findIndex(function(o){return o.id===editId;});
         if (idx >= 0) obras[idx] = Object.assign(obras[idx], payload);
         notify('Obra atualizada');
       } else {
-        var { data: newObra, error: e2 } = await db.from('obras').insert(payload).select().single();
-        if (e2) throw e2;
-        // Se foto foi feita com temp_id, mover para id real
-        if (newPhotoFile && payload.foto_url && payload.foto_url.includes('temp_')) {
-          var newPath = newObra.id + '/capa.' + newPhotoFile.name.split('.').pop();
-          await db.storage.from('fotos').move(path, newPath);
-          var { data: urlD2 } = db.storage.from('fotos').getPublicUrl(newPath);
-          await db.from('obras').update({ foto_url: urlD2.publicUrl }).eq('id', newObra.id);
-          newObra.foto_url = urlD2.publicUrl;
+        payload.created_at = serverTimestamp();
+        var newRef = await addDoc(collection(db, 'obras'), payload);
+        if (newPhotoFile) {
+          var url2 = await enviarFoto(newRef.id, newPhotoFile);
+          if (url2) { payload.foto_url = url2; await updateDoc(newRef, { foto_url: url2 }); }
         }
+        var newObra = Object.assign({ id: newRef.id }, payload);
         obras.push(newObra);
-        stats[newObra.id] = { orcTotal:0, pct:0, nfs:0 };
+        stats[newRef.id] = { orcTotal:0, pct:0, nfs:0 };
         notify('Obra criada');
       }
 
@@ -499,17 +505,32 @@
     }
   }
 
-  function editObra(id) { openModal(id); }
+  window.editObra = function editObra(id) { openModal(id); }
 
-  async function deleteObra(id) {
+  window.deleteObra = async function deleteObra(id) {
     var o = obras.find(function(x){return x.id===id;});
     if (!confirm('Excluir a obra "' + (o ? o.nome : '') + '" e todos os seus dados?\n\nEsta ação não pode ser desfeita.')) return;
-    var { error } = await db.from('obras').delete().eq('id', id);
-    if (error) { notify('Erro ao excluir'); return; }
-    obras = obras.filter(function(o){return o.id!==id;});
-    delete stats[id];
-    render();
-    notify('Obra excluída');
+    try {
+      await excluirRelacionados(id);
+      await deleteDoc(doc(db, 'obras', id));
+      obras = obras.filter(function(o){return o.id!==id;});
+      delete stats[id];
+      render();
+      notify('Obra excluída');
+    } catch(e) {
+      notify('Erro ao excluir');
+    }
+  }
+
+  async function excluirRelacionados(obraId) {
+    var colecoes = ['orcamento', 'visao_fisica', 'apropriacao', 'acessos'];
+    for (var i = 0; i < colecoes.length; i++) {
+      var snap = await getDocs(query(collection(db, colecoes[i]), where('obra_id', '==', obraId)));
+      if (snap.empty) continue;
+      var batch = writeBatch(db);
+      snap.forEach(function(d){ batch.delete(d.ref); });
+      await batch.commit();
+    }
   }
 
   /* ── Helpers ── */
@@ -525,8 +546,6 @@
   document.getElementById('overlay').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
-
-  init();
 </script>
 </body>
 </html>

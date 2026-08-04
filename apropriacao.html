@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Apropriações · Portal de Auditoria de Concreto</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -137,6 +136,11 @@
   </div>
   <div class="topbar-right">
     <div class="topbar-status"><div class="tdot loading" id="statusDot"></div><span id="statusText">Carregando...</span></div>
+    <input type="file" id="importFile" accept=".xlsx,.csv" style="display:none" onchange="importXLSX(this)">
+    <button class="btn btn-export" onclick="document.getElementById('importFile').click()" style="background:#475569">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 14V6M5 9l3-3 3 3M3 3h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Importar planilha
+    </button>
     <button class="btn btn-export" onclick="exportXLSX()">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Exportar XLSX
@@ -195,11 +199,14 @@
   </div>
 </div>
 
-<script>
-  var SUPA_URL = 'https://lqlkyrjmwbfibjkvgjxc.supabase.co';
-  var SUPA_KEY = 'sb_publishable_VFdiDiAnPL_-UWyxpcMPBA_8LwGIXkH';
-  var db = supabase.createClient(SUPA_URL, SUPA_KEY);
-  if (!localStorage.getItem('usuario')) { window.location.href = 'login.html'; }
+<script type="module">
+  import { db } from './js/firebase-init.js';
+  import { exigirLogin } from './js/auth-guard.js';
+  import {
+    collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where,
+    orderBy, serverTimestamp, writeBatch
+  } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
   var OBRA_ID = new URLSearchParams(window.location.search).get('obra');
   if (!OBRA_ID) { window.location.href = 'home.html'; }
   var lines = [];
@@ -214,16 +221,17 @@
   function fmtBRL(n)   { return n ? 'R$ ' + Math.round(+n).toLocaleString('pt-BR') : 'R$ 0'; }
   function esc(s)      { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+  exigirLogin(function() { init(); });
+
   async function init() {
     setStatus('loading', 'Carregando...');
     try {
-      var { data: rows, error: e1 } = await db.from('apropriacao')
-        .select('*').eq('obra_id', OBRA_ID).order('created_at', { ascending: true });
-      if (e1) throw e1;
+      var snap = await getDocs(query(collection(db, 'apropriacao'), where('obra_id', '==', OBRA_ID), orderBy('created_at', 'asc')));
 
-      lines = (rows||[]).map(function(r) {
+      lines = snap.docs.map(function(d) {
+        var r = d.data();
         return {
-          id: r.id,
+          id: d.id,
           data:       r.data_nf||'',
           nf:         r.numero_nf||'',
           fornecedor: r.fornecedor||'',
@@ -306,7 +314,7 @@
     document.getElementById('footTotal').textContent = fmtBRL(totVal);
   }
 
-  function scheduleUpdate(id, field, value) {
+  window.scheduleUpdate = function scheduleUpdate(id, field, value) {
     var l = lines.find(function(x){return x.id===id;}); if (!l) return;
     l[field] = (field==='volume'||field==='vu') ? (+value||0) : value;
     recalcRow(id);
@@ -315,41 +323,137 @@
     setStatus('saving', 'Salvando...');
     saveTimers[id] = setTimeout(async function() {
       var row = lines.find(function(x){return x.id===id;}); if (!row) return;
-      var { error } = await db.from('apropriacao').update({
-        data_nf:    row.data||'',
-        numero_nf:  row.nf||'',
-        fornecedor: row.fornecedor||'',
-        descricao:  row.descricao||'',
-        volume:     row.volume||0,
-        rs_unitario:row.vu||0,
-        updated_at: new Date().toISOString()
-      }).eq('id', id);
-      setStatus(error?'err':'ok', error?'Erro ao salvar':'Salvo');
+      try {
+        await updateDoc(doc(db, 'apropriacao', id), {
+          data_nf:    row.data||'',
+          numero_nf:  row.nf||'',
+          fornecedor: row.fornecedor||'',
+          descricao:  row.descricao||'',
+          volume:     row.volume||0,
+          rs_unitario:row.vu||0,
+          updated_at: serverTimestamp()
+        });
+        setStatus('ok', 'Salvo');
+      } catch(e) {
+        setStatus('err', 'Erro ao salvar');
+      }
     }, 700);
   }
 
-  async function addBlank() {
+  window.addBlank = async function addBlank() {
     if (!OBRA_ID) { notify('Aguarde a conexão...'); return; }
     setStatus('saving', 'Salvando...');
-    var { data, error } = await db.from('apropriacao').insert({
-      obra_id: OBRA_ID, data_nf:'', numero_nf:'', fornecedor:'', descricao:'', volume:0, rs_unitario:0
-    }).select().single();
-    if (error) { setStatus('err', 'Erro ao criar'); return; }
-    lines.push({ id:data.id, data:'', nf:'', fornecedor:'', descricao:'', volume:0, vu:0 });
-    render(data.id);
-    setStatus('ok', 'Salvo');
+    try {
+      var ref = await addDoc(collection(db, 'apropriacao'), {
+        obra_id: OBRA_ID, data_nf:'', numero_nf:'', fornecedor:'', descricao:'', volume:0, rs_unitario:0, created_at: serverTimestamp()
+      });
+      lines.push({ id:ref.id, data:'', nf:'', fornecedor:'', descricao:'', volume:0, vu:0 });
+      render(ref.id);
+      setStatus('ok', 'Salvo');
+    } catch(e) {
+      setStatus('err', 'Erro ao criar');
+    }
   }
 
-  async function deleteLine(id) {
+  window.deleteLine = async function deleteLine(id) {
     if (!confirm('Remover esta apropriação?')) return;
-    var { error } = await db.from('apropriacao').delete().eq('id', id);
-    if (error) { notify('Erro ao remover'); return; }
-    lines = lines.filter(function(l){return l.id!==id;});
-    render();
-    notify('Registro removido');
+    try {
+      await deleteDoc(doc(db, 'apropriacao', id));
+      lines = lines.filter(function(l){return l.id!==id;});
+      render();
+      notify('Registro removido');
+    } catch(e) {
+      notify('Erro ao remover');
+    }
   }
 
-  function exportXLSX() {
+  /* ── Import XLSX ── */
+  function normHeader(s) { return String(s||'').toLowerCase().trim(); }
+  function pickCol(row, names) {
+    var keys = Object.keys(row);
+    for (var i=0;i<keys.length;i++) {
+      if (names.indexOf(normHeader(keys[i])) !== -1) return row[keys[i]];
+    }
+    return '';
+  }
+  function parseNumBR(v) {
+    if (typeof v === 'number') return v;
+    return parseFloat(String(v||'0').replace(/\./g,'').replace(',','.')) || 0;
+  }
+  function parseDataBR(v) {
+    if (!v) return '';
+    if (v instanceof Date) {
+      return String(v.getDate()).padStart(2,'0') + '/' + String(v.getMonth()+1).padStart(2,'0') + '/' + v.getFullYear();
+    }
+    return String(v).trim();
+  }
+
+  window.importXLSX = function importXLSX(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var isCSV = /\.csv$/i.test(file.name);
+    var reader = new FileReader();
+    reader.onload = async function(e) {
+      try {
+        var wb = isCSV
+          ? XLSX.read(e.target.result, { type: 'string' })
+          : XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!rows.length) { notify('Planilha vazia'); return; }
+
+        var itens = rows.map(function(r) {
+          return {
+            data_nf:     parseDataBR(pickCol(r, ['data nf','data'])),
+            numero_nf:   String(pickCol(r, ['numero nf','nº nf','n° nf','n nf','numero da nf']) || '').trim(),
+            fornecedor:  String(pickCol(r, ['fornecedor']) || '').trim(),
+            descricao:   String(pickCol(r, ['descricao','descrição','descricao / fck','descrição / fck']) || '').trim(),
+            volume:      parseNumBR(pickCol(r, ['volume','volume (m3)','volume (m³)'])),
+            rs_unitario: parseNumBR(pickCol(r, ['r$ / m3','r$ / m³','valor unitario','valor unitário','vlr unt']))
+          };
+        }).filter(function(it){ return it.fornecedor || it.numero_nf || it.descricao; });
+
+        if (!itens.length) {
+          notify('Nenhuma linha válida — confira as colunas (Fornecedor, Descrição, Volume, R$/m³)');
+          return;
+        }
+
+        setStatus('saving', 'Importando ' + itens.length + ' itens...');
+        var CHUNK = 400;
+        for (var i = 0; i < itens.length; i += CHUNK) {
+          var chunk = itens.slice(i, i + CHUNK);
+          var batch = writeBatch(db);
+          var chunkRefs = [];
+          chunk.forEach(function(it) {
+            var newRef = doc(collection(db, 'apropriacao'));
+            chunkRefs.push({ ref: newRef, item: it });
+            batch.set(newRef, {
+              obra_id: OBRA_ID, data_nf: it.data_nf, numero_nf: it.numero_nf,
+              fornecedor: it.fornecedor, descricao: it.descricao,
+              volume: it.volume, rs_unitario: it.rs_unitario, created_at: serverTimestamp()
+            });
+          });
+          await batch.commit();
+          chunkRefs.forEach(function(x) {
+            lines.push({ id: x.ref.id, data: x.item.data_nf, nf: x.item.numero_nf, fornecedor: x.item.fornecedor, descricao: x.item.descricao, volume: x.item.volume, vu: x.item.rs_unitario });
+          });
+        }
+
+        render();
+        setStatus('ok', 'Importado');
+        notify(itens.length + ' itens importados');
+      } catch(err) {
+        setStatus('err', 'Erro ao importar');
+        notify('Erro ao importar: ' + err.message);
+      } finally {
+        input.value = '';
+      }
+    };
+    if (isCSV) reader.readAsText(file, 'UTF-8'); else reader.readAsArrayBuffer(file);
+  }
+
+  /* ── Export XLSX ── */
+  window.exportXLSX = function exportXLSX() {
     var data = [['DataNF','NumeroNF','Fornecedor','Descricao','Volume_m3','RsUnitario','RsTotal']];
     lines.forEach(function(l) {
       data.push([l.data||'', l.nf||'', l.fornecedor||'', l.descricao||'', l.volume||0, l.vu||0, Math.round(l.volume*l.vu)]);
@@ -373,7 +477,6 @@
   }
 
   document.getElementById('btnVoltar').href = 'painel.html?obra=' + OBRA_ID;
-  init();
 </script>
 </body>
 </html>
